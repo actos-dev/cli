@@ -128,6 +128,8 @@ pub enum Commands {
     Man(ManArgs),
     /// Komut yardımını veya makine-okunur JSON şemasını görüntüler
     Help(HelpArgs),
+    /// Terminal kullanıcı arayüzünü (TUI) başlatır
+    Tui,
 }
 
 #[derive(Args, Debug)]

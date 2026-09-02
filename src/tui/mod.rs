@@ -1,0 +1,128 @@
+#[cfg(feature = "tui")]
+pub mod app;
+#[cfg(feature = "tui")]
+pub mod ui;
+#[cfg(feature = "tui")]
+pub mod views;
+
+use crate::client::ApiClient;
+use crate::error::CliError;
+
+#[cfg(feature = "tui")]
+pub async fn run_tui(client: &ApiClient) -> Result<(), CliError> {
+    use std::io::IsTerminal;
+
+    // Ajan Sözleşmesi §2 kural 5
+    if !std::io::stdout().is_terminal() {
+        return Err(CliError::Usage(
+            "actos tui requires an interactive terminal (TTY)".to_string(),
+        ));
+    }
+
+    use crossterm::{
+        execute,
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    };
+    use ratatui::Terminal;
+    use ratatui::backend::CrosstermBackend;
+
+    enable_raw_mode().map_err(|e| CliError::Io(format!("Failed to enable raw mode: {e}")))?;
+    let mut stdout = std::io::stdout();
+    execute!(stdout, EnterAlternateScreen)
+        .map_err(|e| CliError::Io(format!("Failed to enter alternate screen: {e}")))?;
+
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)
+        .map_err(|e| CliError::Io(format!("Failed to initialize terminal: {e}")))?;
+
+    let mut app = app::App::new(client).await;
+
+    let res = run_loop(&mut terminal, &mut app, client).await;
+
+    // Terminal durumunu geri yükle
+    let _ = disable_raw_mode();
+    let _ = execute!(terminal.backend_mut(), LeaveAlternateScreen);
+    let _ = terminal.show_cursor();
+
+    res
+}
+
+#[cfg(feature = "tui")]
+async fn run_loop(
+    terminal: &mut ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>,
+    app: &mut app::App,
+    client: &ApiClient,
+) -> Result<(), CliError> {
+    use crossterm::event::{self, Event, KeyCode};
+    use std::time::Duration;
+
+    while !app.should_quit {
+        terminal
+            .draw(|f| ui::render_ui(f, app))
+            .map_err(|e| CliError::Io(format!("Draw error: {e}")))?;
+
+        if event::poll(Duration::from_millis(100))
+            .map_err(|e| CliError::Io(format!("Event poll error: {e}")))?
+            && let Event::Key(key) =
+                event::read().map_err(|e| CliError::Io(format!("Event read error: {e}")))?
+        {
+            if app.show_help_popup {
+                if key.code == KeyCode::Char('?') || key.code == KeyCode::Esc {
+                    app.show_help_popup = false;
+                }
+                continue;
+            }
+
+            match key.code {
+                KeyCode::Char('q') => {
+                    app.should_quit = true;
+                }
+                KeyCode::Char('?') => {
+                    app.show_help_popup = !app.show_help_popup;
+                }
+                KeyCode::Tab => {
+                    app.next_tab();
+                }
+                KeyCode::BackTab => {
+                    app.previous_tab();
+                }
+                KeyCode::Esc => {
+                    if app.current_tab == app::CurrentTab::Detail {
+                        app.current_tab = app.previous_tab;
+                    }
+                }
+                KeyCode::Char('j') | KeyCode::Down => {
+                    app.move_down();
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    app.move_up();
+                }
+                KeyCode::Enter => match app.current_tab {
+                    app::CurrentTab::Feed => {
+                        app.open_selected_post(client).await;
+                    }
+                    app::CurrentTab::Search => {
+                        app.perform_search(client).await;
+                    }
+                    _ => {}
+                },
+                KeyCode::Backspace if app.current_tab == app::CurrentTab::Search => {
+                    app.search_query.pop();
+                }
+                KeyCode::Char(c) if app.current_tab == app::CurrentTab::Search => {
+                    app.search_query.push(c);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(not(feature = "tui"))]
+pub async fn run_tui(_client: &ApiClient) -> Result<(), CliError> {
+    Err(CliError::Usage(
+        "actos was compiled without TUI support. Recompile with '--features tui'".to_string(),
+    ))
+}

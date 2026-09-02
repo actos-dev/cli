@@ -79,6 +79,7 @@ fn get_examples_for_command(name: &str) -> Vec<String> {
             "actos man".into(),
             "actos man --dir /usr/local/share/man/man1".into(),
         ],
+        "tui" => vec!["actos tui".into()],
         _ => vec![],
     }
 }

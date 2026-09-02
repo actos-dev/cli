@@ -70,6 +70,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Commands::Completion(args) => handle_completion(&args.shell),
         Commands::Man(args) => handle_man(args.dir.as_deref()),
         Commands::Help(args) => handle_help(args.command.as_deref(), args.json || json),
+        Commands::Tui => actos::tui::run_tui(&client).await,
     }
 }
 

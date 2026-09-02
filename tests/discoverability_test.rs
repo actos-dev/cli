@@ -55,6 +55,7 @@ fn test_help_json_schema_completeness() {
         "completion",
         "man",
         "help",
+        "tui",
     ];
 
     for exp in expected {

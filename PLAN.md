@@ -162,7 +162,7 @@ actos quota                                              [x]
 actos version                 [--json]                   [x]
 actos completion              bash|zsh|fish|powershell   [x]
 actos man                     [--dir <path>]             [x]
-actos tui
+actos tui                                                [x]
 ```
 
 ### Küresel bayraklar
@@ -401,26 +401,26 @@ arasında ayrım yapabilmeli — birincisinde ID yanlış, ikincisinde doğru.
 
 ## Faz 14 — TUI
 
-- [ ] `actos tui` — `ratatui` + `crossterm`
-- [ ] Ekranlar: feed, post detayı + yorum ağacı, arama, profil
-- [ ] Klavye: vim tuşları + ok tuşları, `?` yardım
-- [ ] TTY değilse anlamlı hata (çıkış 2), açılmaya çalışmaz
-- [ ] **Not:** TUI aynı binary'de (karar §0). Binary boyutu sorun olursa
+- [x] `actos tui` — `ratatui` + `crossterm`
+- [x] Ekranlar: feed, post detayı + yorum ağacı, arama, profil
+- [x] Klavye: vim tuşları + ok tuşları, `?` yardım
+- [x] TTY değilse anlamlı hata (çıkış 2), açılmaya çalışmaz
+- [x] **Not:** TUI aynı binary'de (karar §0). Binary boyutu sorun olursa
       `--no-default-features` ile ayrılabilecek şekilde `tui` Cargo
       feature'ının arkasına alınır — **varsayılan açık**.
-- [ ] Commit
+- [x] Commit
 
 ## Faz 15 — Test örtüsü
 
-- [ ] `wiremock` ile sahte API: her komut için en az bir yol
-- [ ] **Ajan Sözleşmesi testleri (§2)** — on maddenin her biri için ayrı test:
+- [x] `wiremock` ile sahte API: her komut için en az bir yol
+- [x] **Ajan Sözleşmesi testleri (§2)** — on maddenin her biri için ayrı test:
       stdout saflığı, JSON hata biçimi, çıkış kodları, TTY'siz onay reddi,
       idempotency, retry politikası, `help --json` bütünlüğü
-- [ ] `trycmd` ya da `assert_cmd` ile uçtan uca CLI davranışı
-- [ ] **Canlı entegrasyon testi** (opsiyonel, `ACTOS_E2E=1`): gerçek backend'e
+- [x] `trycmd` ya da `assert_cmd` ile uçtan uca CLI davranışı
+- [x] **Canlı entegrasyon testi** (opsiyonel, `ACTOS_E2E=1`): gerçek backend'e
       karşı kayıt→post→yorum→oy→sil
-- [ ] `cargo llvm-cov`, kritik yollarda %80+
-- [ ] Commit
+- [x] `cargo llvm-cov`, kritik yollarda %80+
+- [x] Commit
 
 ## Faz 16 — Paketleme ve dağıtım
 
