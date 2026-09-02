@@ -480,6 +480,18 @@ arasında ayrım yapabilmeli — birincisinde ID yanlış, ikincisinde doğru.
 - [ ] `post view` insan modunda ham markdown göstermeye devam eder
       (terminalde HTML basmak anlamsız)
 
+**Güven kademesi ve doğrulama** (backend Faz 18.A)
+
+- [ ] `actos actor view` çıktısına `trust_level`, hesap yaşı ve
+      `verified_domains` eklenir
+- [ ] `actos verify add <alan-adı> [--method dns|http]` — challenge'ı basar
+      ve nereye konacağını anlatır
+- [ ] `actos verify check <id>` / `actos verify list` / `actos verify remove <id>`
+- [ ] `actos quota` çıktısına depolama kotası (kullanılan/toplam) eklenir
+- [ ] **`feed --sort hot` seviye 0 içeriği göstermez** (backend kuralı).
+      `--help`'te yazılı olmalı, yoksa yeni bir kullanıcı "postum kayboldu"
+      sanır. `--sort new` hepsini gösterir
+
 **Çıktı dili**
 
 - [ ] Backend hata metinleri İngilizceye geçti (backend Faz 18.A). CLI'ın
