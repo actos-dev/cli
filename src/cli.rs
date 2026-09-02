@@ -89,6 +89,10 @@ impl Cli {
 pub enum Commands {
     /// Profil ve yapılandırma yönetimi
     Config(ConfigArgs),
+    /// Kimlik doğrulama ve API anahtarı yönetimi
+    Auth(AuthArgs),
+    /// Gönderi (post) işlemleri
+    Post(PostArgs),
 }
 
 #[derive(Args, Debug)]
@@ -122,5 +126,128 @@ pub enum ConfigAction {
         /// Belirtilen profile ata
         #[arg(long)]
         profile: Option<String>,
+    },
+}
+
+#[derive(Args, Debug)]
+pub struct AuthArgs {
+    #[command(subcommand)]
+    pub action: AuthAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AuthAction {
+    /// Yeni bir hesap kaydeder ve kurtarma kodlarını üretir
+    Register {
+        #[arg(long)]
+        username: String,
+        #[arg(long, value_name = "TYPE")]
+        r#type: String,
+        #[arg(long)]
+        display_name: Option<String>,
+        #[arg(long, help = "Üretilen anahtarı aktif profile kaydet")]
+        save: bool,
+    },
+    /// API anahtarı ile giriş yapar
+    Login {
+        #[arg(long, help = "Giriş için API anahtarı")]
+        key: Option<String>,
+        #[arg(long, help = "Anahtarı stdin'den oku")]
+        stdin: bool,
+    },
+    /// Aktif kimlik ve yetki bilgilerini görüntüler
+    Whoami,
+    /// API anahtarlarını yönetir
+    Keys {
+        #[command(subcommand)]
+        action: KeysAction,
+    },
+    /// Kurtarma koduyla hesabı kurtarır ve yeni anahtar üretir
+    Recover {
+        #[arg(long)]
+        username: String,
+        #[arg(long)]
+        code: String,
+        #[arg(long, help = "Yeni anahtarı profile kaydet")]
+        save: bool,
+    },
+    /// Kurtarma kodlarını yeniden üretir
+    Recovery {
+        #[command(subcommand)]
+        action: RecoveryAction,
+    },
+    /// Aktif profilden çıkış yapar
+    Logout,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum KeysAction {
+    /// Kullanıcıya ait API anahtarlarını listeler
+    List,
+    /// Yeni bir API anahtarı oluşturur
+    Create {
+        #[arg(long)]
+        label: Option<String>,
+    },
+    /// Belirtilen API anahtarını iptal eder
+    Revoke { key_id: String },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum RecoveryAction {
+    /// 10 yeni kurtarma kodu üretir (eskiler geçersiz kalır)
+    Regenerate,
+}
+
+#[derive(Args, Debug)]
+pub struct PostArgs {
+    #[command(subcommand)]
+    pub action: PostAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum PostAction {
+    /// Yeni bir post oluşturur
+    Create {
+        #[arg(long)]
+        title: String,
+        #[arg(long, help = "Post gövdesi (metin, '-' stdin için veya '@dosya.md')")]
+        body: String,
+        #[arg(long = "tag", action = clap::ArgAction::Append)]
+        tags: Vec<String>,
+        #[arg(long, help = "JSON formatında ek metadata")]
+        metadata: Option<String>,
+        #[arg(long, help = "İstemci seviyesinde idempotency anahtarı")]
+        idempotency_key: Option<String>,
+    },
+    /// Bir postu görüntüler
+    View {
+        /// Post ID veya URL
+        id: String,
+        #[arg(long, help = "İlk N yorumu da getir")]
+        comments: Option<u32>,
+    },
+    /// Bir postu düzenler
+    Edit {
+        /// Post ID veya URL
+        id: String,
+        #[arg(long)]
+        title: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+    },
+    /// Bir postu siler
+    Delete {
+        /// Post ID veya URL
+        id: String,
+    },
+    /// Belirtilen kullanıcının postlarını listeler
+    List {
+        #[arg(long)]
+        actor: String,
+        #[arg(long)]
+        limit: Option<u32>,
+        #[arg(long)]
+        cursor: Option<String>,
     },
 }

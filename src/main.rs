@@ -1,24 +1,43 @@
 #![forbid(unsafe_code)]
 
 use actos::cli::{Cli, Commands};
+use actos::commands::auth::handle_auth;
 use actos::commands::config::handle_config;
+use actos::commands::post::handle_post;
+use actos::config::Config;
 use actos::error::{CliError, ExitCode};
 use clap::Parser;
 
-fn run(cli: Cli) -> Result<(), CliError> {
+async fn run(cli: Cli) -> Result<(), CliError> {
+    let mut config = Config::load()?;
+    let output = cli.output_context();
+    let client = cli.build_client(&config)?;
+    let profile = cli.profile.clone();
+    let yes = cli.yes;
+    let json = cli.json;
+
     match cli.command {
-        Commands::Config(args) => handle_config(args.action, cli.profile.as_deref(), cli.json),
+        Commands::Config(args) => handle_config(args.action, profile.as_deref(), json),
+        Commands::Auth(args) => {
+            let target_profile = profile
+                .as_deref()
+                .unwrap_or(config.default_profile.as_str())
+                .to_string();
+            handle_auth(args.action, &client, &mut config, &output, &target_profile).await
+        }
+        Commands::Post(args) => handle_post(args.action, &client, &output, yes).await,
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args: Vec<String> = std::env::args().collect();
     let is_json = args.iter().any(|arg| arg == "--json");
 
     match Cli::try_parse() {
         Ok(cli) => {
             let json_mode = cli.json;
-            if let Err(err) = run(cli) {
+            if let Err(err) = run(cli).await {
                 err.render(json_mode);
                 std::process::exit(err.exit_code().as_i32());
             }

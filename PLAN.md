@@ -98,22 +98,22 @@ Tam ağaç. Her satır bir uca ya da uç grubuna karşılık gelir.
 `[A]` = kimlik gerektirir, `[M]` = moderatör, `[X]` = admin.
 
 ```
-actos auth login              --key <k> | --stdin        [ ]
-actos auth register           --username --type          [ ]
-actos auth whoami                                        [A]
-actos auth keys list                                     [A]
-actos auth keys create        --label                    [A]
-actos auth keys revoke        <key-id>                   [A]
-actos auth recover            --username --code          [ ]
-actos auth recovery regenerate                           [A]
-actos auth logout             [--profile]                [ ]
+actos auth login              --key <k> | --stdin        [x]
+actos auth register           --username --type          [x]
+actos auth whoami                                        [x]
+actos auth keys list                                     [x]
+actos auth keys create        --label                    [x]
+actos auth keys revoke        <key-id>                   [x]
+actos auth recover            --username --code          [x]
+actos auth recovery regenerate                           [x]
+actos auth logout             [--profile]                [x]
 
 actos post create             --title --body [--tag]... [--attach]...
-                              [--metadata] [--idempotency-key]        [A]
-actos post view               <id> [--comments N]        [ ]
-actos post edit               <id> [--title] [--body]    [A]
-actos post delete             <id> --yes                 [A]
-actos post list               --actor <username>         [ ]
+                              [--metadata] [--idempotency-key]        [x]
+actos post view               <id> [--comments N]        [x]
+actos post edit               <id> [--title] [--body]    [x]
+actos post delete             <id> --yes                 [x]
+actos post list               --actor <username>         [x]
 
 actos comment create          <post-id> --body [--parent <id>]        [A]
 actos comment view            <id>                       [ ]
@@ -295,27 +295,27 @@ arasında ayrım yapabilmeli — birincisinde ID yanlış, ikincisinde doğru.
 
 ## Faz 4 — auth
 
-- [ ] `actos auth register --username --type` → anahtarı ve **10 kurtarma
+- [x] `actos auth register --username --type` → anahtarı ve **10 kurtarma
       kodunu** basar; **bir daha gösterilemeyeceği** insan modunda vurgulanır
-- [ ] `--save` ile profile yazar (varsayılan: yazmaz, sadece basar)
-- [ ] `actos auth login --key` / `--stdin` (anahtarı argv'ye koymamak için;
+- [x] `--save` ile profile yazar (varsayılan: yazmaz, sadece basar)
+- [x] `actos auth login --key` / `--stdin` (anahtarı argv'ye koymamak için;
       argv `ps` çıktısında görünür — insan modunda uyarı)
-- [ ] `whoami`, `keys list|create|revoke`, `recover`, `recovery regenerate`,
+- [x] `whoami`, `keys list|create|revoke`, `recover`, `recovery regenerate`,
       `logout`
-- [ ] **Testler:** kayıt→login→whoami akışı, geçersiz anahtar → çıkış 3
-- [ ] Commit
+- [x] **Testler:** kayıt→login→whoami akışı, geçersiz anahtar → çıkış 3
+- [x] Commit
 
 ## Faz 5 — post
 
-- [ ] `create` — `--title`, `--body` (`-`/`@dosya`), `--tag` (tekrarlanabilir),
+- [x] `create` — `--title`, `--body` (`-`/`@dosya`), `--tag` (tekrarlanabilir),
       `--attach` (Faz 10'a kadar hata verir), `--metadata` (JSON),
       `--idempotency-key`
-- [ ] `view <id>` — `--comments N` ile ilk N yorum
-- [ ] `edit`, `delete --yes`, `list --actor <username>`
-- [ ] Silinmiş post → çıkış **6**, olmayan → **5**
-- [ ] **Testler:** oluştur→görüntüle→düzenle→sil, aynı idempotency anahtarıyla
+- [x] `view <id>` — `--comments N` ile ilk N yorum
+- [x] `edit`, `delete --yes`, `list --actor <username>`
+- [x] Silinmiş post → çıkış **6**, olmayan → **5**
+- [x] **Testler:** oluştur→görüntüle→düzenle→sil, aynı idempotency anahtarıyla
       iki kez `create` → tek post
-- [ ] Commit
+- [x] Commit
 
 ## Faz 6 — comment
 
