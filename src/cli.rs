@@ -57,6 +57,34 @@ pub struct Cli {
     pub command: Commands,
 }
 
+impl Cli {
+    /// CLI ve Config parametrelerine dayanarak `ApiClient` oluşturur.
+    pub fn build_client(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<crate::client::ApiClient, crate::error::CliError> {
+        let resolved = config.resolve(self.profile.as_deref(), self.api_url.as_deref());
+        crate::client::ApiClient::new(
+            resolved.api_url,
+            resolved.api_key,
+            self.timeout,
+            self.wait,
+            self.verbose,
+        )
+    }
+
+    /// Çıktı biçimlendirme bağlamını oluşturur.
+    #[must_use]
+    pub fn output_context(&self) -> crate::output::OutputContext {
+        crate::output::OutputContext::new(
+            self.json,
+            self.fields.as_deref(),
+            self.no_color,
+            self.verbose,
+        )
+    }
+}
+
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Profil ve yapılandırma yönetimi

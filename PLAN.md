@@ -247,51 +247,51 @@ arasında ayrım yapabilmeli — birincisinde ID yanlış, ikincisinde doğru.
 > Bu faz aracın omurgası. Sonraki her komut buna dayanır; burada verilen
 > kararlar sonradan değiştirilemez.
 
-- [ ] `reqwest` (rustls, **ring** — backend ile aynı gerekçe), keep-alive açık
-- [ ] `User-Agent: actos-cli/<sürüm>` — sunucu tarafı ayırt edebilsin
-- [ ] `Authorization: Bearer <key>` enjeksiyonu tek yerde
-- [ ] **Yeniden deneme politikası:**
+- [x] `reqwest` (rustls, **ring** — backend ile aynı gerekçe), keep-alive açık
+- [x] `User-Agent: actos-cli/<sürüm>` — sunucu tarafı ayırt edebilsin
+- [x] `Authorization: Bearer <key>` enjeksiyonu tek yerde
+- [x] **Yeniden deneme politikası:**
       - Ağ hatası ve `5xx` → üstel geri çekilme + jitter, en fazla 3 deneme
       - `4xx` → **asla** yeniden denenmez
       - **Idempotency anahtarı olmayan yazmalar `5xx`'te de denenmez** —
         sunucu isteği almış ama yanıt kaybolmuş olabilir
-- [ ] **429 davranışı:** varsayılan hızlı başarısızlık (çıkış 9);
+- [x] **429 davranışı:** varsayılan hızlı başarısızlık (çıkış 9);
       `--wait` verilirse `Retry-After`'a uyar, beklerken stderr'e bilgi yazar
-- [ ] **Hız sınırı header'ları her yanıttan okunur** ve `--json` çıktısında
+- [x] **Hız sınırı header'ları her yanıttan okunur** ve `--json` çıktısında
       `_meta.rate_limit` altında sunulur (backend her yanıtta gönderiyor)
-- [ ] **Idempotency:** `post create` her çağrıda UUIDv7 anahtar üretir;
+- [x] **Idempotency:** `post create` her çağrıda UUIDv7 anahtar üretir;
       `--idempotency-key` verilirse o kullanılır.
       **Dokümante edilecek incelik:** otomatik anahtar yalnızca CLI'ın *kendi
       içindeki* yeniden denemeyi korur. Ajan komutu baştan çalıştırırsa yeni
       anahtar üretilir ve çift post oluşur — ajan-seviyesi tekrar için
       `--idempotency-key` **açıkça verilmelidir**.
-- [ ] **Sayfalama:** `--limit N` cursor'ları takip eder; sunucunun
+- [x] **Sayfalama:** `--limit N` cursor'ları takip eder; sunucunun
       `MAX_PAGE_SIZE=100` sınırı içinde parçalar. `--cursor` ile tek sayfa.
-- [ ] RFC 9457 gövdesi → iç hata tipine ayrıştırma (`code`, `request_id`)
-- [ ] **Testler:** sahte HTTP sunucusuyla (`wiremock`) retry, 429+`--wait`,
+- [x] RFC 9457 gövdesi → iç hata tipine ayrıştırma (`code`, `request_id`)
+- [x] **Testler:** sahte HTTP sunucusuyla (`wiremock`) retry, 429+`--wait`,
       idempotency anahtarının gönderilmesi, cursor takibi
-- [ ] Commit
+- [x] Commit
 
 ## Faz 3 — Çıktı sözleşmesi
 
 > §2'deki Ajan Sözleşmesi burada uygulanır.
 
-- [ ] İki mod: insan (varsayılan) ve `--json`
-- [ ] **stdout disiplini:** `--json` açıkken stdout'ta yalnız JSON.
+- [x] İki mod: insan (varsayılan) ve `--json`
+- [x] **stdout disiplini:** `--json` açıkken stdout'ta yalnız JSON.
       İlerleme, uyarı, log → stderr. Bunu bir test **kanıtlar**.
-- [ ] İnsan modu: listelerde tablo, tekilde detay; renk yalnız TTY'de;
+- [x] İnsan modu: listelerde tablo, tekilde detay; renk yalnız TTY'de;
       `NO_COLOR` ve `--no-color` saygı görür
-- [ ] `--fields`: uç sunucu tarafı `?fields=` destekliyorsa oraya iletilir,
+- [x] `--fields`: uç sunucu tarafı `?fields=` destekliyorsa oraya iletilir,
       desteklemiyorsa istemcide süzülür.
       **Desteklemeyen uçlar** (backend Faz 9 notu): yorum ağacı uçları —
       alan süzme `replies` anahtarını eleyip ağacı düzleştirebilir.
-- [ ] Hata biçimi (JSON, stderr):
+- [x] Hata biçimi (JSON, stderr):
       `{"error":{"code","message","status","request_id","retry_after"?,"details"?}}`
-- [ ] Çıkış kodu eşlemesi (§4) tek bir yerde, tablo olarak
-- [ ] `--verbose`: istek/yanıt özeti stderr'e; **anahtar asla loglanmaz**
-- [ ] **Testler:** stdout saflığı, her çıkış kodu için bir vaka,
+- [x] Çıkış kodu eşlemesi (§4) tek bir yerde, tablo olarak
+- [x] `--verbose`: istek/yanıt özeti stderr'e; **anahtar asla loglanmaz**
+- [x] **Testler:** stdout saflığı, her çıkış kodu için bir vaka,
       `--fields`'ın sunucuya iletilmesi
-- [ ] Commit
+- [x] Commit
 
 ## Faz 4 — auth
 
