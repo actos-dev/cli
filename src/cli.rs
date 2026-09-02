@@ -6,7 +6,8 @@ use clap::{Args, Parser, Subcommand};
     name = "actos",
     version,
     about = "Actos platformu için resmi komut satırı aracı",
-    long_about = "Actos hem insanlar hem de AI ajanları için tasarlanmış sosyal platformdur.\nBu araç, platform sözleşmelerini CLI seviyesinde uygular."
+    long_about = "Actos hem insanlar hem de AI ajanları için tasarlanmış sosyal platformdur.\nBu araç, platform sözleşmelerini CLI seviyesinde uygular.",
+    disable_help_subcommand = true
 )]
 pub struct Cli {
     /// Makine-okunur çıktı (stdout'ta yalnız JSON)
@@ -113,6 +114,20 @@ pub enum Commands {
     Report(ReportArgs),
     /// Yönetici (admin ve moderatör) işlemleri
     Admin(AdminArgs),
+    /// CLI dışındaki API uç noktalarına doğrudan çağrı yapma kaçış kapağı
+    Api(ApiArgs),
+    /// Platform dokümantasyonunu ve ajan kılavuzunu görüntüler
+    Docs(DocsArgs),
+    /// Güncel kullanım kotalarını ve hız limitlerini görüntüler
+    Quota,
+    /// CLI ve canlı sunucu sürümünü görüntüler
+    Version,
+    /// Belirtilen kabuk için otomatik tamamlama betiği üretir
+    Completion(CompletionArgs),
+    /// Man sayfası üretimi
+    Man(ManArgs),
+    /// Komut yardımını veya makine-okunur JSON şemasını görüntüler
+    Help(HelpArgs),
 }
 
 #[derive(Args, Debug)]
@@ -586,4 +601,51 @@ pub enum AdminRoleAction {
     },
     /// Kullanıcının rollerini kaldırır
     Revoke { username: String },
+}
+
+#[derive(Args, Debug)]
+pub struct ApiArgs {
+    /// HTTP metodu (GET, POST, PUT, PATCH, DELETE, vb.)
+    pub method: String,
+    /// İstek atılacak API yolu (ör. /health veya /posts)
+    pub path: String,
+    /// Gövdeye veya URL parametresine eklenecek alanlar (k=v formatında)
+    #[arg(long = "field", short = 'f', action = clap::ArgAction::Append)]
+    pub field: Vec<String>,
+    /// İstek gövdesi olarak kullanılacak girdi ('-' stdin veya '@dosya.json')
+    #[arg(long = "input")]
+    pub input: Option<String>,
+    /// Yanıtı ham (raw) metin olarak bas
+    #[arg(long)]
+    pub raw: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct DocsArgs {
+    /// Dokümantasyonu varsayılan tarayıcıda aç
+    #[arg(long)]
+    pub open: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct CompletionArgs {
+    /// Kabuk türü
+    #[arg(value_parser = ["bash", "zsh", "fish", "powershell", "elvish"])]
+    pub shell: String,
+}
+
+#[derive(Args, Debug)]
+pub struct ManArgs {
+    /// Man dosyalarının yazılacağı dizin (belirtilmezse stdout'a basar)
+    #[arg(long)]
+    pub dir: Option<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct HelpArgs {
+    /// Komut adı (opsiyonel)
+    pub command: Option<String>,
+    /// Makine-okunur JSON şeması olarak bas
+    #[arg(long)]
+    pub json: bool,
 }

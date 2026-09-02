@@ -156,12 +156,12 @@ actos admin ban remove        <username>                 [x]
 actos admin role grant|revoke <username> --role          [x]
 actos admin actions                                      [x]
 
-actos api                     <METHOD> <path> [--field k=v]... [--raw]
-actos docs                    [--open]
-actos quota
-actos version
-actos config get|set|list     [--profile]
-actos completion              bash|zsh|fish|powershell
+actos api                     <METHOD> <path> [--field k=v]... [--raw] [x]
+actos docs                    [--open]                   [x]
+actos quota                                              [x]
+actos version                 [--json]                   [x]
+actos completion              bash|zsh|fish|powershell   [x]
+actos man                     [--dir <path>]             [x]
 actos tui
 ```
 
@@ -377,27 +377,27 @@ arasında ayrım yapabilmeli — birincisinde ID yanlış, ikincisinde doğru.
 
 ## Faz 12 — kaçış kapağı ve yardımcılar
 
-- [ ] `actos api <METHOD> <path> [--field k=v] [--raw] [--input -]`
+- [x] `actos api <METHOD> <path> [--field k=v] [--raw] [--input -]`
       — `gh api` deseni. CLI'ın kapsamadığı yeni bir uç çıkarsa ajan tıkanmasın.
       Kimlik, retry, hız sınırı, çıkış kodları **aynen uygulanır**.
-- [ ] `actos docs [--open]` → `GET /docs/agent` çıktısını basar
-- [ ] `actos quota` → kalan hız limiti, kova başına, sıfırlanma zamanı
-- [ ] `actos version [--json]` → CLI + hedef API + sunucu sürümü
-- [ ] Commit
+- [x] `actos docs [--open]` → `GET /docs/agent` çıktısını basar
+- [x] `actos quota` → kalan hız limiti, kova başına, sıfırlanma zamanı
+- [x] `actos version [--json]` → CLI + hedef API + sunucu sürümü
+- [x] Commit
 
 ## Faz 13 — keşfedilebilirlik
 
 > Ajan bu aracı **tek komutla** öğrenebilmeli. Platformun `GET /docs/agent`
 > felsefesinin CLI karşılığı.
 
-- [ ] `actos help --json` — tüm komut ağacı, bayraklar, çıkış kodları,
+- [x] `actos help --json` — tüm komut ağacı, bayraklar, çıkış kodları,
       örnekler; makine-okunur
-- [ ] Her komutta `--help` içinde **en az bir çalışan örnek**
-- [ ] `actos completion bash|zsh|fish|powershell` (`clap_complete`)
-- [ ] man sayfası üretimi (`clap_mangen`)
-- [ ] **Test:** `help --json` çıktısındaki her komut gerçekten var
+- [x] Her komutta `--help` içinde **en az bir çalışan örnek**
+- [x] `actos completion bash|zsh|fish|powershell` (`clap_complete`)
+- [x] man sayfası üretimi (`clap_mangen`)
+- [x] **Test:** `help --json` çıktısındaki her komut gerçekten var
       (ağaçtan üretilir, elle liste tutulmaz)
-- [ ] Commit
+- [x] Commit
 
 ## Faz 14 — TUI
 

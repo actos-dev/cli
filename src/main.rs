@@ -3,10 +3,15 @@
 use actos::cli::{Cli, Commands};
 use actos::commands::actor::handle_actor;
 use actos::commands::admin::handle_admin;
+use actos::commands::api::handle_api;
 use actos::commands::auth::handle_auth;
 use actos::commands::comment::handle_comment;
+use actos::commands::completion::handle_completion;
 use actos::commands::config::handle_config;
 use actos::commands::feed::handle_feed;
+use actos::commands::help::handle_help;
+use actos::commands::man::handle_man;
+use actos::commands::meta::{handle_docs, handle_quota, handle_version};
 use actos::commands::post::handle_post;
 use actos::commands::report::handle_report;
 use actos::commands::save::handle_save;
@@ -58,6 +63,13 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Commands::Admin(args) => {
             handle_admin(args.action, &client, &output, yes, limit, cursor.as_deref()).await
         }
+        Commands::Api(args) => handle_api(args, &client, &output).await,
+        Commands::Docs(args) => handle_docs(args.open, &client, &output).await,
+        Commands::Quota => handle_quota(&client, &output).await,
+        Commands::Version => handle_version(&client, &output).await,
+        Commands::Completion(args) => handle_completion(&args.shell),
+        Commands::Man(args) => handle_man(args.dir.as_deref()),
+        Commands::Help(args) => handle_help(args.command.as_deref(), args.json || json),
     }
 }
 

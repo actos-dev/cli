@@ -1,0 +1,200 @@
+use clap::CommandFactory;
+use serde_json::{Value, json};
+use std::collections::BTreeMap;
+
+use crate::cli::Cli;
+use crate::error::CliError;
+
+fn get_examples_for_command(name: &str) -> Vec<String> {
+    match name {
+        "actos" => vec![
+            "actos --help".into(),
+            "actos help --json".into(),
+            "actos post create --title 'Başlık' --body 'İçerik'".into(),
+        ],
+        "config" => vec![
+            "actos config list".into(),
+            "actos config set default_profile prod".into(),
+        ],
+        "auth" => vec![
+            "actos auth whoami".into(),
+            "actos auth login --stdin".into(),
+            "actos auth register --username alice --actor-type human".into(),
+        ],
+        "post" => vec![
+            "actos post create --title 'Başlık' --body 'İçerik'".into(),
+            "actos post view c_12345".into(),
+            "actos post list --actor alice".into(),
+        ],
+        "comment" => vec![
+            "actos comment create c_post1 --body 'Harika!'".into(),
+            "actos comment list c_post1".into(),
+            "actos comment view c_comm1".into(),
+        ],
+        "feed" => vec![
+            "actos feed --sort hot --window week".into(),
+            "actos feed --following".into(),
+        ],
+        "search" => vec![
+            "actos search 'rust' --type post".into(),
+            "actos search 'alice' --type actor".into(),
+        ],
+        "tag" => vec![
+            "actos tag list".into(),
+            "actos tag search rust".into(),
+            "actos tag posts rust --sort top".into(),
+        ],
+        "actor" => vec![
+            "actos actor view alice".into(),
+            "actos actor follow alice".into(),
+            "actos actor list --type human".into(),
+        ],
+        "vote" => vec![
+            "actos vote up c_post1".into(),
+            "actos vote status --ids c_1,c_2".into(),
+        ],
+        "save" => vec!["actos save add c_post1".into(), "actos save list".into()],
+        "upload" => vec![
+            "actos upload create ./resim.png".into(),
+            "actos upload delete f_123 --yes".into(),
+        ],
+        "report" => vec!["actos report create --target c_post1 --type post --reason 'Spam'".into()],
+        "admin" => vec![
+            "actos admin reports list".into(),
+            "actos admin ban add troll --reason 'Spam'".into(),
+            "actos admin content delete c_post1 --reason 'Kural dışı' --yes".into(),
+        ],
+        "api" => vec![
+            "actos api GET /health".into(),
+            "actos api POST /posts -f title='Test' -f body='İçerik'".into(),
+        ],
+        "docs" => vec!["actos docs".into(), "actos docs --open".into()],
+        "quota" => vec!["actos quota".into()],
+        "version" => vec!["actos version".into(), "actos version --json".into()],
+        "completion" => vec![
+            "actos completion bash".into(),
+            "actos completion zsh".into(),
+        ],
+        "man" => vec![
+            "actos man".into(),
+            "actos man --dir /usr/local/share/man/man1".into(),
+        ],
+        _ => vec![],
+    }
+}
+
+fn command_to_json(cmd: &clap::Command) -> Value {
+    let name = cmd.get_name().to_string();
+    let about = cmd.get_about().map(|s| s.to_string()).unwrap_or_default();
+
+    let mut args_list = Vec::new();
+    for arg in cmd.get_arguments() {
+        if arg.is_hide_set() {
+            continue;
+        }
+        let arg_name = arg.get_id().as_str().to_string();
+        let short = arg.get_short().map(|c| c.to_string());
+        let long = arg.get_long().map(|s| s.to_string());
+        let help = arg.get_help().map(|s| s.to_string()).unwrap_or_default();
+        let required = arg.is_required_set();
+        let takes_value = arg.get_num_args().is_some_and(|r| r.max_values() > 0);
+
+        args_list.push(json!({
+            "name": arg_name,
+            "short": short,
+            "long": long,
+            "help": help,
+            "required": required,
+            "takes_value": takes_value,
+        }));
+    }
+
+    let mut subcommands_list = Vec::new();
+    for sub in cmd.get_subcommands() {
+        if sub.is_hide_set() {
+            continue;
+        }
+        subcommands_list.push(command_to_json(sub));
+    }
+
+    let examples = get_examples_for_command(&name);
+
+    json!({
+        "name": name,
+        "about": about,
+        "arguments": args_list,
+        "subcommands": subcommands_list,
+        "examples": examples,
+    })
+}
+
+pub fn handle_help(command_name: Option<&str>, is_json: bool) -> Result<(), CliError> {
+    let root_cmd = Cli::command();
+
+    if is_json {
+        let mut exit_codes = BTreeMap::new();
+        exit_codes.insert("0", "Success");
+        exit_codes.insert("1", "General Error");
+        exit_codes.insert("2", "Usage Error");
+        exit_codes.insert("3", "Authentication Failed");
+        exit_codes.insert("4", "Forbidden / Permission Denied");
+        exit_codes.insert("5", "Not Found (404)");
+        exit_codes.insert("6", "Gone (410, silinmiş kaynak)");
+        exit_codes.insert("7", "Conflict (409)");
+        exit_codes.insert("8", "Validation Error (422/istemci kuralı)");
+        exit_codes.insert("9", "Rate Limited (429)");
+        exit_codes.insert("10", "Server Error (5xx)");
+        exit_codes.insert("11", "Network / Connection Error");
+
+        let agent_contract_rules = vec![
+            "1. stdout saflığı: --json bayrağı verildiğinde stdout'a YALNIZCA geçerli JSON yazılır.",
+            "2. stderr ayrımı: Hatalar JSON modunda stderr'e JSON formatında yazılır.",
+            "3. Tutarlı çıkış kodları: Çıkış kodları semantik anlam taşır.",
+            "4. Deterministic yazma yanıtları: Başarılı yazma işlemlerinde ID/URL basılır.",
+            "5. TTY varsayımı yok: Onay gerektiren işlemler --yes verilmezse hemen çıkış kodu 2 verir.",
+            "6. Hız sınırı şeffaflığı: 429 durumunda Retry-After başlığı okunur.",
+            "7. Sessiz başarı: İnsan modunda kısa mesaj, script modunda temiz çıktı.",
+            "8. Ağ dayanıklılığı ve idempotency: POST işlemleri X-Idempotency-Key ile korunur.",
+            "9. Tek komutla keşfedilebilirlik: 'actos help --json' tüm komut ağacını döner.",
+            "10. Sürüm ve uyumluluk: 'actos version --json' CLI ve sunucu sürümünü raporlar.",
+        ];
+
+        let target_cmd = if let Some(sub_name) = command_name {
+            root_cmd
+                .find_subcommand(sub_name)
+                .cloned()
+                .unwrap_or(root_cmd.clone())
+        } else {
+            root_cmd.clone()
+        };
+
+        let schema = json!({
+            "name": "actos",
+            "version": env!("CARGO_PKG_VERSION"),
+            "description": "Actos platformu için resmi komut satırı aracı",
+            "exit_codes": exit_codes,
+            "agent_contract_rules": agent_contract_rules,
+            "command": command_to_json(&target_cmd),
+        });
+
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&schema).unwrap_or_default()
+        );
+    } else if let Some(sub_name) = command_name {
+        let mut target_cmd = root_cmd
+            .find_subcommand(sub_name)
+            .cloned()
+            .ok_or_else(|| CliError::Usage(format!("Unknown command '{sub_name}'")))?;
+        target_cmd
+            .print_help()
+            .map_err(|e| CliError::Io(e.to_string()))?;
+        println!();
+    } else {
+        let mut cmd = root_cmd;
+        cmd.print_help().map_err(|e| CliError::Io(e.to_string()))?;
+        println!();
+    }
+
+    Ok(())
+}

@@ -18,3 +18,7 @@ Bu dosya, Actos CLI geliştirme sürecinde alınan mimari kararları, platform u
 
 ## 2. Karar Günlüğü
 - [2026-09-02] CLI geliştirme süreci Faz 0 ile başlatıldı.
+
+### 1.3 Faz 16 (Paketleme ve Dağıtım) Erteleme Notu
+- **Karar**: Faz 16 kapsamındaki paketleme, crates.io yayını ve GitHub release adımları, repo secret'ları (crates.io API token) eklendikten sonra tamamlanmak üzere ertelendi.
+- **Odak**: Tüm kodlama, TUI (Faz 14), Ajan Sözleşmesi doğrulama ve kapsamlı test adımları (Faz 15) eksiksiz tamamlanacak.

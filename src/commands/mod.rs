@@ -1,9 +1,14 @@
 pub mod actor;
 pub mod admin;
+pub mod api;
 pub mod auth;
 pub mod comment;
+pub mod completion;
 pub mod config;
 pub mod feed;
+pub mod help;
+pub mod man;
+pub mod meta;
 pub mod post;
 pub mod report;
 pub mod save;
