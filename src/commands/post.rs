@@ -48,6 +48,7 @@ pub async fn handle_post(
             title,
             body,
             tags,
+            attach,
             metadata,
             idempotency_key,
         } => {
@@ -55,6 +56,12 @@ pub async fn handle_post(
                 return Err(CliError::Auth(
                     "Authentication required to create a post. Run 'actos auth login' or set ACTOS_API_KEY.".to_string(),
                 ));
+            }
+
+            let mut attachment_ids: Vec<String> = Vec::new();
+            for file_path in &attach {
+                let upload_res = crate::commands::upload::upload_file(client, file_path).await?;
+                attachment_ids.push(upload_res.id);
             }
 
             let resolved_body = resolve_body_content(&body)?;
@@ -65,12 +72,16 @@ pub async fn handle_post(
                 json!({})
             };
 
-            let req_body = json!({
+            let mut req_body = json!({
                 "title": title,
                 "body": resolved_body,
                 "tags": tags,
                 "metadata": meta_val,
             });
+
+            if !attachment_ids.is_empty() {
+                req_body["attachment_ids"] = json!(attachment_ids);
+            }
 
             let (val, rate_limit) = client
                 .post_json("/posts", &req_body, idempotency_key.as_deref())

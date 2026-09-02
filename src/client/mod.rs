@@ -277,6 +277,55 @@ impl ApiClient {
         Ok((val, rate_limit))
     }
 
+    /// Multipart form isteği yapar (dosya yükleme için).
+    pub async fn post_multipart(
+        &self,
+        path: &str,
+        form: reqwest::multipart::Form,
+    ) -> Result<(Value, RateLimitInfo), CliError> {
+        let url_str = if path.starts_with("http://") || path.starts_with("https://") {
+            path.to_string()
+        } else {
+            format!("{}/{}", self.base_url, path.trim_start_matches('/'))
+        };
+
+        let mut req_builder = self.client.request(Method::POST, &url_str);
+
+        if let Some(ref key) = self.api_key {
+            req_builder = req_builder.header(AUTHORIZATION, format!("Bearer {key}"));
+        }
+
+        if self.verbose {
+            eprintln!("> POST {url_str} (multipart)");
+            if self.api_key.is_some() {
+                eprintln!("> Authorization: Bearer [REDACTED]");
+            }
+        }
+
+        let response = req_builder
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|e| CliError::Network(format!("Upload request failed: {e}")))?;
+
+        let status = response.status();
+        let headers = response.headers().clone();
+        let rate_limit = RateLimitInfo::from_headers(&headers);
+        let bytes = response
+            .bytes()
+            .await
+            .map_or_else(|_| Vec::new(), |b| b.to_vec());
+
+        if !status.is_success() {
+            return Err(CliError::from_http_response(status, &headers, &bytes));
+        }
+
+        let val: Value = serde_json::from_slice(&bytes)
+            .map_err(|e| CliError::General(format!("Failed to parse JSON response: {e}")))?;
+
+        Ok((val, rate_limit))
+    }
+
     /// Şeffaf cursor takibiyle sayfalanmış istek yapar (`PLAN.md` Faz 2).
     pub async fn paginate(
         &self,

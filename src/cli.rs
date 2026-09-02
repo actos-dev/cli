@@ -107,6 +107,12 @@ pub enum Commands {
     Vote(VoteArgs),
     /// İçerik kaydetme ve yer imleri
     Save(SaveArgs),
+    /// Dosya ve görsel yükleme
+    Upload(UploadArgs),
+    /// Şikayet (report) bildirimi
+    Report(ReportArgs),
+    /// Yönetici (admin ve moderatör) işlemleri
+    Admin(AdminArgs),
 }
 
 #[derive(Args, Debug)]
@@ -229,6 +235,8 @@ pub enum PostAction {
         body: String,
         #[arg(long = "tag", action = clap::ArgAction::Append)]
         tags: Vec<String>,
+        #[arg(long = "attach", action = clap::ArgAction::Append, help = "Posta eklenecek dosya yolu (otomatik yüklenir)")]
+        attach: Vec<String>,
         #[arg(long, help = "JSON formatında ek metadata")]
         metadata: Option<String>,
         #[arg(long, help = "İstemci seviyesinde idempotency anahtarı")]
@@ -449,4 +457,133 @@ pub enum SaveAction {
     },
     /// Kaydedilen içerikleri listeler
     List,
+}
+
+#[derive(Args, Debug)]
+pub struct UploadArgs {
+    #[command(subcommand)]
+    pub action: UploadAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum UploadAction {
+    /// Bir görsel veya dosya yükler (en fazla 8 MB)
+    Create {
+        /// Yüklenecek dosya yolu
+        file: String,
+    },
+    /// Yüklenmiş bir dosyayı siler
+    Delete {
+        /// Dosya ID'si (f_...)
+        id: String,
+    },
+}
+
+#[derive(Args, Debug)]
+pub struct ReportArgs {
+    #[command(subcommand)]
+    pub action: ReportAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ReportAction {
+    /// Bir içerik hakkında şikayette bulunur
+    Create {
+        /// Şikayet edilecek içerik ID veya URL'si
+        #[arg(long, required = true)]
+        target: String,
+        /// Hedef içeriğin türü (post veya comment)
+        #[arg(long, value_parser = ["post", "comment"], required = true)]
+        r#type: String,
+        /// Şikayet gerekçesi
+        #[arg(long, required = true)]
+        reason: String,
+    },
+}
+
+#[derive(Args, Debug)]
+pub struct AdminArgs {
+    #[command(subcommand)]
+    pub action: AdminAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AdminAction {
+    /// Şikayetleri yönetir
+    Reports {
+        #[command(subcommand)]
+        action: AdminReportsAction,
+    },
+    /// İçerik yönetimi
+    Content {
+        #[command(subcommand)]
+        action: AdminContentAction,
+    },
+    /// Kullanıcı yasaklama (ban) işlemleri
+    Ban {
+        #[command(subcommand)]
+        action: AdminBanAction,
+    },
+    /// Kullanıcı rol yönetimi
+    Role {
+        #[command(subcommand)]
+        action: AdminRoleAction,
+    },
+    /// Denetim günlüğünü (audit log) listeler
+    Actions,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AdminReportsAction {
+    /// Şikayetleri listeler
+    List {
+        #[arg(long, value_parser = ["pending", "resolved", "dismissed"])]
+        status: Option<String>,
+    },
+    /// Şikayet durumunu günceller
+    Update {
+        /// Şikayet ID'si
+        id: String,
+        #[arg(long, value_parser = ["resolved", "dismissed"], required = true)]
+        status: String,
+        #[arg(long)]
+        notes: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AdminContentAction {
+    /// Bir içeriği moderatör yetkisiyle siler
+    Delete {
+        /// İçerik ID veya URL
+        id: String,
+        #[arg(long, required = true)]
+        reason: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AdminBanAction {
+    /// Kullanıcıyı yasaklar
+    Add {
+        username: String,
+        #[arg(long, required = true)]
+        reason: String,
+        #[arg(long)]
+        expires: Option<String>,
+    },
+    /// Kullanıcının yasağını kaldırır
+    Remove { username: String },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AdminRoleAction {
+    /// Kullanıcıya rol atar
+    Grant {
+        username: String,
+        #[arg(long, value_parser = ["admin", "moderator"], required = true)]
+        role: String,
+    },
+    /// Kullanıcının rollerini kaldırır
+    Revoke { username: String },
 }

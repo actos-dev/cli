@@ -143,18 +143,18 @@ actos vote status             --ids <id,id,...>          [x]
 actos save add|remove         <content-id>               [x]
 actos save list                                          [x]
 
-actos upload create           <file>                     [A]
-actos upload delete           <id> --yes                 [A]
+actos upload create           <file>                     [x]
+actos upload delete           <id> --yes                 [x]
 
-actos report create           --target <id> --type --reason           [A]
+actos report create           --target <id> --type --reason           [x]
 
-actos admin reports list      [--status]                 [M]
-actos admin reports update    <id> --status [--notes]    [M]
-actos admin content delete    <id> --reason --yes        [M]
-actos admin ban add           <username> --reason [--expires]         [M]
-actos admin ban remove        <username>                 [M]
-actos admin role grant|revoke <username> --role          [X]
-actos admin actions                                      [M]
+actos admin reports list      [--status]                 [x]
+actos admin reports update    <id> --status [--notes]    [x]
+actos admin content delete    <id> --reason --yes        [x]
+actos admin ban add           <username> --reason [--expires]         [x]
+actos admin ban remove        <username>                 [x]
+actos admin role grant|revoke <username> --role          [x]
+actos admin actions                                      [x]
 
 actos api                     <METHOD> <path> [--field k=v]... [--raw]
 actos docs                    [--open]
@@ -357,23 +357,23 @@ arasında ayrım yapabilmeli — birincisinde ID yanlış, ikincisinde doğru.
 
 ## Faz 10 — upload
 
-- [ ] `upload create <dosya>` — multipart, ilerleme çubuğu **stderr'e**
-- [ ] İstemci tarafı ön kontrol: boyut (8 MB) ve tür, sunucuya gitmeden
+- [x] `upload create <dosya>` — multipart, ilerleme çubuğu **stderr'e**
+- [x] İstemci tarafı ön kontrol: boyut (8 MB) ve tür, sunucuya gitmeden
       reddet — ama sunucunun magic-byte doğrulaması **asla atlanmaz**
-- [ ] `upload delete <id> --yes`
-- [ ] `post create --attach <dosya>` artık çalışır: önce yükler, sonra bağlar
-- [ ] **Testler:** çok büyük dosya, sahte uzantı, bağlanmamış yükleme
-- [ ] Commit
+- [x] `upload delete <id> --yes`
+- [x] `post create --attach <dosya>` artık çalışır: önce yükler, sonra bağlar
+- [x] **Testler:** çok büyük dosya, sahte uzantı, bağlanmamış yükleme
+- [x] Commit
 
 ## Faz 11 — report ve admin
 
-- [ ] `report create --target --type --reason` — aynı hedefe ikinci rapor → çıkış **7**
-- [ ] `admin reports list|update`, `admin content delete --reason`,
+- [x] `report create --target --type --reason` — aynı hedefe ikinci rapor → çıkış **7**
+- [x] `admin reports list|update`, `admin content delete --reason`,
       `admin ban add|remove`, `admin role grant|revoke`, `admin actions`
-- [ ] Yetkisiz kullanımda çıkış **4**, mesaj hangi rolün gerektiğini söyler
-- [ ] `admin` komutları insan modunda **ek onay** ister (`--yes` zorunlu)
-- [ ] **Testler:** yetki matrisi — her admin komutu için yetkisiz vaka
-- [ ] Commit
+- [x] Yetkisiz kullanımda çıkış **4**, mesaj hangi rolün gerektiğini söyler
+- [x] `admin` komutları insan modunda **ek onay** ister (`--yes` zorunlu)
+- [x] **Testler:** yetki matrisi — her admin komutu için yetkisiz vaka
+- [x] Commit
 
 ## Faz 12 — kaçış kapağı ve yardımcılar
 
