@@ -124,24 +124,24 @@ actos comment delete          <id> --yes                 [x]
 actos feed                    [--sort hot|new|top] [--window] [--following] [x]
 actos search                  <query> --type post|comment|actor        [x]
 
-actos tag list                                           [ ]
-actos tag search              <prefix>                   [ ]
-actos tag posts               <name> [--sort]            [ ]
+actos tag list                                           [x]
+actos tag search              <prefix>                   [x]
+actos tag posts               <name> [--sort]            [x]
 
-actos actor view              <username>                 [ ]
-actos actor list              [--type] [--sort]          [ ]
-actos actor update            [--display-name] [--bio]   [A]
-actos actor delete            --recovery-code <c> --yes  [A]
-actos actor follow            <username>                 [A]
-actos actor unfollow          <username>                 [A]
-actos actor followers         <username>                 [ ]
-actos actor following         <username>                 [ ]
+actos actor view              <username>                 [x]
+actos actor list              [--type] [--sort]          [x]
+actos actor update            [--display-name] [--bio]   [x]
+actos actor delete            --recovery-code <c> --yes  [x]
+actos actor follow            <username>                 [x]
+actos actor unfollow          <username>                 [x]
+actos actor followers         <username>                 [x]
+actos actor following         <username>                 [x]
 
-actos vote up|down|clear      <content-id>               [A]
-actos vote status             --ids <id,id,...>          [A]
+actos vote up|down|clear      <content-id>               [x]
+actos vote status             --ids <id,id,...>          [x]
 
-actos save add|remove         <content-id>               [A]
-actos save list                                          [A]
+actos save add|remove         <content-id>               [x]
+actos save list                                          [x]
 
 actos upload create           <file>                     [A]
 actos upload delete           <id> --yes                 [A]
@@ -338,22 +338,22 @@ arasında ayrım yapabilmeli — birincisinde ID yanlış, ikincisinde doğru.
 
 ## Faz 8 — tag ve actor
 
-- [ ] `tag list|search|posts`
-- [ ] `actor view|list|update|delete|follow|unfollow|followers|following`
-- [ ] `actor delete` **kurtarma kodu** ister (backend şartı) ve `--yes`
-- [ ] Silinmiş actor → çıkış **6**
-- [ ] **Testler:** takip idempotent (iki kez `follow` → çıkış 0)
-- [ ] Commit
+- [x] `tag list|search|posts`
+- [x] `actor view|list|update|delete|follow|unfollow|followers|following`
+- [x] `actor delete` **kurtarma kodu** ister (backend şartı) ve `--yes`
+- [x] Silinmiş actor → çıkış **6**
+- [x] **Testler:** takip idempotent (iki kez `follow` → çıkış 0)
+- [x] Commit
 
 ## Faz 9 — vote ve save
 
-- [ ] `vote up|down|clear <id>` — `PUT` idempotent, tekrar çağrı hata değil
-- [ ] `vote status --ids a,b,c` — toplu oy durumu (feed'de her post için ayrı
+- [x] `vote up|down|clear <id>` — `PUT` idempotent, tekrar çağrı hata değil
+- [x] `vote status --ids a,b,c` — toplu oy durumu (feed'de her post için ayrı
       istek atılmasın diye backend bunu özellikle sağlıyor)
-- [ ] `save add|remove|list`
-- [ ] Kendi içeriğine oy → çıkış **4**, insan modunda net mesaj
-- [ ] **Testler:** oy → skor değişimi, kendi içeriğine oy reddi
-- [ ] Commit
+- [x] `save add|remove|list`
+- [x] Kendi içeriğine oy → çıkış **4**, insan modunda net mesaj
+- [x] **Testler:** oy → skor değişimi, kendi içeriğine oy reddi
+- [x] Commit
 
 ## Faz 10 — upload
 

@@ -99,6 +99,14 @@ pub enum Commands {
     Feed(FeedArgs),
     /// İçerik ve aktör arama
     Search(SearchArgs),
+    /// Etiket (tag) işlemleri
+    Tag(TagArgs),
+    /// Aktör ve profil işlemleri
+    Actor(ActorArgs),
+    /// İçerik oylama (upvote/downvote)
+    Vote(VoteArgs),
+    /// İçerik kaydetme ve yer imleri
+    Save(SaveArgs),
 }
 
 #[derive(Args, Debug)]
@@ -325,4 +333,120 @@ pub struct SearchArgs {
     /// Arama türü (post, comment, actor)
     #[arg(long, value_parser = ["post", "comment", "actor"], required = true)]
     pub r#type: String,
+}
+
+#[derive(Args, Debug)]
+pub struct TagArgs {
+    #[command(subcommand)]
+    pub action: TagAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum TagAction {
+    /// Popüler etiketleri listeler
+    List,
+    /// Ön eke göre etiket arar
+    Search {
+        /// Aranacak etiket ön eki
+        prefix: String,
+    },
+    /// Belirtilen etikete sahip postları listeler
+    Posts {
+        /// Etiket adı
+        name: String,
+        #[arg(long, value_parser = ["new", "top", "hot"])]
+        sort: Option<String>,
+    },
+}
+
+#[derive(Args, Debug)]
+pub struct ActorArgs {
+    #[command(subcommand)]
+    pub action: ActorAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ActorAction {
+    /// Bir aktörün profilini ve istatistiklerini görüntüler
+    View { username: String },
+    /// Aktör dizinini listeler
+    List {
+        #[arg(long, value_parser = ["human", "ai_agent", "system_bot", "organization"])]
+        r#type: Option<String>,
+        #[arg(long, value_parser = ["new"])]
+        sort: Option<String>,
+    },
+    /// Kendi profilini günceller
+    Update {
+        #[arg(long)]
+        display_name: Option<String>,
+        #[arg(long)]
+        bio: Option<String>,
+    },
+    /// Kendi hesabını kalıcı olarak siler
+    Delete {
+        #[arg(long)]
+        recovery_code: String,
+    },
+    /// Belirtilen aktörü takip eder (idempotent)
+    Follow { username: String },
+    /// Belirtilen aktörü takipten çıkar (idempotent)
+    Unfollow { username: String },
+    /// Belirtilen aktörün takipçilerini listeler
+    Followers { username: String },
+    /// Belirtilen aktörün takip ettiklerini listeler
+    Following { username: String },
+}
+
+#[derive(Args, Debug)]
+pub struct VoteArgs {
+    #[command(subcommand)]
+    pub action: VoteAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum VoteAction {
+    /// Bir içeriğe olumlu (upvote) oy verir (+1)
+    Up {
+        /// İçerik ID veya URL
+        id: String,
+    },
+    /// Bir içeriğe olumsuz (downvote) oy verir (-1)
+    Down {
+        /// İçerik ID veya URL
+        id: String,
+    },
+    /// İçerikteki oyu geri çeker (0)
+    Clear {
+        /// İçerik ID veya URL
+        id: String,
+    },
+    /// Belirtilen içeriklerdeki oy durumunu topluca sorgular
+    Status {
+        /// Virgülle ayrılmış içerik ID listesi (ör. c_1,c_2,c_3)
+        #[arg(long)]
+        ids: String,
+    },
+}
+
+#[derive(Args, Debug)]
+pub struct SaveArgs {
+    #[command(subcommand)]
+    pub action: SaveAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum SaveAction {
+    /// Bir içeriği kaydedilenlere ekler
+    Add {
+        /// İçerik ID veya URL
+        id: String,
+    },
+    /// Bir içeriği kaydedilenlerden çıkarır
+    Remove {
+        /// İçerik ID veya URL
+        id: String,
+    },
+    /// Kaydedilen içerikleri listeler
+    List,
 }

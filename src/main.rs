@@ -1,12 +1,16 @@
 #![forbid(unsafe_code)]
 
 use actos::cli::{Cli, Commands};
+use actos::commands::actor::handle_actor;
 use actos::commands::auth::handle_auth;
 use actos::commands::comment::handle_comment;
 use actos::commands::config::handle_config;
 use actos::commands::feed::handle_feed;
 use actos::commands::post::handle_post;
+use actos::commands::save::handle_save;
 use actos::commands::search::handle_search;
+use actos::commands::tag::handle_tag;
+use actos::commands::vote::handle_vote;
 use actos::config::Config;
 use actos::error::{CliError, ExitCode};
 use clap::Parser;
@@ -35,6 +39,16 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Commands::Feed(args) => handle_feed(args, &client, &output, limit, cursor.as_deref()).await,
         Commands::Search(args) => {
             handle_search(args, &client, &output, limit, cursor.as_deref()).await
+        }
+        Commands::Tag(args) => {
+            handle_tag(args.action, &client, &output, limit, cursor.as_deref()).await
+        }
+        Commands::Actor(args) => {
+            handle_actor(args.action, &client, &output, yes, limit, cursor.as_deref()).await
+        }
+        Commands::Vote(args) => handle_vote(args.action, &client, &output).await,
+        Commands::Save(args) => {
+            handle_save(args.action, &client, &output, limit, cursor.as_deref()).await
         }
     }
 }
