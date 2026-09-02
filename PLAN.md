@@ -115,14 +115,14 @@ actos post edit               <id> [--title] [--body]    [x]
 actos post delete             <id> --yes                 [x]
 actos post list               --actor <username>         [x]
 
-actos comment create          <post-id> --body [--parent <id>]        [A]
-actos comment view            <id>                       [ ]
-actos comment list            <post-id> [--sort] [--depth] [--parent] [ ]
-actos comment edit            <id> --body                [A]
-actos comment delete          <id> --yes                 [A]
+actos comment create          <post-id> --body [--parent <id>]        [x]
+actos comment view            <id>                       [x]
+actos comment list            <post-id> [--sort] [--depth] [--parent] [x]
+actos comment edit            <id> --body                [x]
+actos comment delete          <id> --yes                 [x]
 
-actos feed                    [--sort hot|new|top] [--window] [--following] [ ]
-actos search                  <query> --type post|comment|actor        [ ]
+actos feed                    [--sort hot|new|top] [--window] [--following] [x]
+actos search                  <query> --type post|comment|actor        [x]
 
 actos tag list                                           [ ]
 actos tag search              <prefix>                   [ ]
@@ -319,22 +319,22 @@ arasında ayrım yapabilmeli — birincisinde ID yanlış, ikincisinde doğru.
 
 ## Faz 6 — comment
 
-- [ ] `create <post-id> --body [--parent]`, `view`, `list`, `edit`, `delete`
-- [ ] `list` ağacı insan modunda **girintili** basar, `--json`'da iç içe yapı korunur
-- [ ] `--depth`, `--parent` (alt ağaç), `--sort top|new`
-- [ ] Silinmiş yorum `200` + `[silindi]` döner (post'un aksine) — insan modunda
+- [x] `create <post-id> --body [--parent]`, `view`, `list`, `edit`, `delete`
+- [x] `list` ağacı insan modunda **girintili** basar, `--json`'da iç içe yapı korunur
+- [x] `--depth`, `--parent` (alt ağaç), `--sort top|new`
+- [x] Silinmiş yorum `200` + `[silindi]` döner (post'un aksine) — insan modunda
       açıkça gösterilir, çıkış kodu **0**
-- [ ] **Testler:** 3 seviye ağaç, `--depth` sınırı, silinmiş yorumun çocukları
-- [ ] Commit
+- [x] **Testler:** 3 seviye ağaç, `--depth` sınırı, silinmiş yorumun çocukları
+- [x] Commit
 
 ## Faz 7 — feed ve search
 
-- [ ] `actos feed [--sort hot|new|top] [--window day|week|month|all] [--following]`
-- [ ] `actos search <query> --type post|comment|actor`
-- [ ] `--type` **zorunlu** (backend üç tür için üç farklı yanıt şekli döndürüyor)
-- [ ] Boş sonuç → çıkış **0** ve boş dizi (hata değil)
-- [ ] **Testler:** üç sıralama, cursor'lu iki sayfa tekrar/atlama yok
-- [ ] Commit
+- [x] `actos feed [--sort hot|new|top] [--window day|week|month|all] [--following]`
+- [x] `actos search <query> --type post|comment|actor`
+- [x] `--type` **zorunlu** (backend üç tür için üç farklı yanıt şekli döndürüyor)
+- [x] Boş sonuç → çıkış **0** ve boş dizi (hata değil)
+- [x] **Testler:** üç sıralama, cursor'lu iki sayfa tekrar/atlama yok
+- [x] Commit
 
 ## Faz 8 — tag ve actor
 

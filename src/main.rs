@@ -2,8 +2,11 @@
 
 use actos::cli::{Cli, Commands};
 use actos::commands::auth::handle_auth;
+use actos::commands::comment::handle_comment;
 use actos::commands::config::handle_config;
+use actos::commands::feed::handle_feed;
 use actos::commands::post::handle_post;
+use actos::commands::search::handle_search;
 use actos::config::Config;
 use actos::error::{CliError, ExitCode};
 use clap::Parser;
@@ -15,6 +18,8 @@ async fn run(cli: Cli) -> Result<(), CliError> {
     let profile = cli.profile.clone();
     let yes = cli.yes;
     let json = cli.json;
+    let limit = cli.limit;
+    let cursor = cli.cursor.clone();
 
     match cli.command {
         Commands::Config(args) => handle_config(args.action, profile.as_deref(), json),
@@ -26,6 +31,11 @@ async fn run(cli: Cli) -> Result<(), CliError> {
             handle_auth(args.action, &client, &mut config, &output, &target_profile).await
         }
         Commands::Post(args) => handle_post(args.action, &client, &output, yes).await,
+        Commands::Comment(args) => handle_comment(args.action, &client, &output, yes).await,
+        Commands::Feed(args) => handle_feed(args, &client, &output, limit, cursor.as_deref()).await,
+        Commands::Search(args) => {
+            handle_search(args, &client, &output, limit, cursor.as_deref()).await
+        }
     }
 }
 

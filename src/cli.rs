@@ -93,6 +93,12 @@ pub enum Commands {
     Auth(AuthArgs),
     /// Gönderi (post) işlemleri
     Post(PostArgs),
+    /// Yorum (comment) işlemleri
+    Comment(CommentArgs),
+    /// Genel veya takip edilenlerin akışı
+    Feed(FeedArgs),
+    /// İçerik ve aktör arama
+    Search(SearchArgs),
 }
 
 #[derive(Args, Debug)]
@@ -250,4 +256,73 @@ pub enum PostAction {
         #[arg(long)]
         cursor: Option<String>,
     },
+}
+
+#[derive(Args, Debug)]
+pub struct CommentArgs {
+    #[command(subcommand)]
+    pub action: CommentAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum CommentAction {
+    /// Bir posta yorum ekler
+    Create {
+        /// Post ID veya URL
+        post_id: String,
+        #[arg(long, help = "Yorum gövdesi (metin, '-' stdin için veya '@dosya.md')")]
+        body: String,
+        #[arg(long, help = "Üst yorum ID'si (yanıt için)")]
+        parent: Option<String>,
+    },
+    /// Bir yorumu görüntüler
+    View {
+        /// Yorum ID veya URL
+        id: String,
+    },
+    /// Bir postun yorum ağacını listeler
+    List {
+        /// Post ID veya URL
+        post_id: String,
+        #[arg(long, value_parser = ["top", "new"], help = "Sıralama (top, new)")]
+        sort: Option<String>,
+        #[arg(long, help = "Maksimum ağaç derinliği")]
+        depth: Option<u32>,
+        #[arg(long, help = "Belirli bir alt ağacın kök yorum ID'si")]
+        parent: Option<String>,
+    },
+    /// Bir yorumu düzenler
+    Edit {
+        /// Yorum ID veya URL
+        id: String,
+        #[arg(long)]
+        body: String,
+    },
+    /// Bir yorumu siler
+    Delete {
+        /// Yorum ID veya URL
+        id: String,
+    },
+}
+
+#[derive(Args, Debug)]
+pub struct FeedArgs {
+    #[arg(long, value_parser = ["hot", "new", "top"], help = "Sıralama türü (hot, new, top)")]
+    pub sort: Option<String>,
+    #[arg(long, value_parser = ["day", "week", "month", "all"], help = "Zaman penceresi (day, week, month, all)")]
+    pub window: Option<String>,
+    #[arg(
+        long,
+        help = "Yalnızca takip edilen kullanıcıların gönderilerini getir"
+    )]
+    pub following: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct SearchArgs {
+    /// Arama sorgusu
+    pub query: String,
+    /// Arama türü (post, comment, actor)
+    #[arg(long, value_parser = ["post", "comment", "actor"], required = true)]
+    pub r#type: String,
 }

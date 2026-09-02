@@ -17,7 +17,8 @@ pub fn extract_next_cursor(val: &Value) -> Option<String> {
 pub fn find_array_field_name(val: &Value) -> Option<String> {
     if let Some(map) = val.as_object() {
         let candidate_keys = [
-            "items", "posts", "comments", "actors", "tags", "reports", "keys", "votes", "saved",
+            "items", "results", "posts", "comments", "actors", "tags", "reports", "keys", "votes",
+            "saved",
         ];
 
         for key in candidate_keys {
