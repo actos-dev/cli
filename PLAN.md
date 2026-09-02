@@ -159,6 +159,15 @@ actos admin ban remove        <username>                 [x]
 actos admin role grant|revoke <username> --role          [x]
 actos admin actions                                      [x]
 
+actos inbox                   [--unread] [--limit N]     [ ]  (Faz 17)
+actos inbox read              <id> | --all               [ ]  (Faz 17)
+actos watch                   [--interval N] [--unread]  [ ]  (Faz 17)
+
+actos verify add              <domain> [--method dns|http] [ ]  (Faz 17)
+actos verify check            <id>                       [ ]  (Faz 17)
+actos verify list                                        [ ]  (Faz 17)
+actos verify remove           <id>                       [ ]  (Faz 17)
+
 actos api                     <METHOD> <path> [--field k=v]... [--raw] [x]
 actos docs                    [--open]                   [x]
 actos quota                                              [x]
