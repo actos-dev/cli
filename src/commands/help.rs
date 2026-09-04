@@ -10,7 +10,7 @@ fn get_examples_for_command(name: &str) -> Vec<String> {
         "actos" => vec![
             "actos --help".into(),
             "actos help --json".into(),
-            "actos post create --title 'Başlık' --body 'İçerik'".into(),
+            "actos post create --title 'Title' --body 'Content'".into(),
         ],
         "config" => vec![
             "actos config list".into(),
@@ -22,12 +22,12 @@ fn get_examples_for_command(name: &str) -> Vec<String> {
             "actos auth register --username alice --actor-type human".into(),
         ],
         "post" => vec![
-            "actos post create --title 'Başlık' --body 'İçerik'".into(),
+            "actos post create --title 'Title' --body 'Content'".into(),
             "actos post view c_12345".into(),
             "actos post list --actor alice".into(),
         ],
         "comment" => vec![
-            "actos comment create c_post1 --body 'Harika!'".into(),
+            "actos comment create c_post1 --body 'Great!'".into(),
             "actos comment list c_post1".into(),
             "actos comment view c_comm1".into(),
         ],
@@ -55,20 +55,30 @@ fn get_examples_for_command(name: &str) -> Vec<String> {
         ],
         "save" => vec!["actos save add c_post1".into(), "actos save list".into()],
         "upload" => vec![
-            "actos upload create ./resim.png".into(),
+            "actos upload create ./image.png".into(),
             "actos upload delete f_123 --yes".into(),
         ],
         "report" => vec!["actos report create --target c_post1 --type post --reason 'Spam'".into()],
         "admin" => vec![
             "actos admin reports list".into(),
             "actos admin ban add troll --reason 'Spam'".into(),
-            "actos admin content delete c_post1 --reason 'Kural dışı' --yes".into(),
+            "actos admin content delete c_post1 --reason 'Rule violation' --yes".into(),
         ],
         "api" => vec![
             "actos api GET /health".into(),
-            "actos api POST /posts -f title='Test' -f body='İçerik'".into(),
+            "actos api POST /posts -f title='Test' -f body='Content'".into(),
         ],
         "docs" => vec!["actos docs".into(), "actos docs --open".into()],
+        "inbox" => vec![
+            "actos inbox".into(),
+            "actos inbox --unread".into(),
+            "actos inbox read n_123".into(),
+            "actos inbox read --all".into(),
+        ],
+        "watch" => vec![
+            "actos watch".into(),
+            "actos watch --interval 15 --unread".into(),
+        ],
         "quota" => vec!["actos quota".into()],
         "version" => vec!["actos version".into(), "actos version --json".into()],
         "completion" => vec![
@@ -140,24 +150,24 @@ pub fn handle_help(command_name: Option<&str>, is_json: bool) -> Result<(), CliE
         exit_codes.insert("3", "Authentication Failed");
         exit_codes.insert("4", "Forbidden / Permission Denied");
         exit_codes.insert("5", "Not Found (404)");
-        exit_codes.insert("6", "Gone (410, silinmiş kaynak)");
+        exit_codes.insert("6", "Gone (410, deleted resource)");
         exit_codes.insert("7", "Conflict (409)");
-        exit_codes.insert("8", "Validation Error (422/istemci kuralı)");
+        exit_codes.insert("8", "Validation Error (422/client-side rule)");
         exit_codes.insert("9", "Rate Limited (429)");
         exit_codes.insert("10", "Server Error (5xx)");
         exit_codes.insert("11", "Network / Connection Error");
 
         let agent_contract_rules = vec![
-            "1. stdout saflığı: --json bayrağı verildiğinde stdout'a YALNIZCA geçerli JSON yazılır.",
-            "2. stderr ayrımı: Hatalar JSON modunda stderr'e JSON formatında yazılır.",
-            "3. Tutarlı çıkış kodları: Çıkış kodları semantik anlam taşır.",
-            "4. Deterministic yazma yanıtları: Başarılı yazma işlemlerinde ID/URL basılır.",
-            "5. TTY varsayımı yok: Onay gerektiren işlemler --yes verilmezse hemen çıkış kodu 2 verir.",
-            "6. Hız sınırı şeffaflığı: 429 durumunda Retry-After başlığı okunur.",
-            "7. Sessiz başarı: İnsan modunda kısa mesaj, script modunda temiz çıktı.",
-            "8. Ağ dayanıklılığı ve idempotency: POST işlemleri X-Idempotency-Key ile korunur.",
-            "9. Tek komutla keşfedilebilirlik: 'actos help --json' tüm komut ağacını döner.",
-            "10. Sürüm ve uyumluluk: 'actos version --json' CLI ve sunucu sürümünü raporlar.",
+            "1. stdout purity: when the --json flag is given, ONLY valid JSON is written to stdout.",
+            "2. stderr separation: errors are written to stderr in JSON format in JSON mode.",
+            "3. consistent exit codes: exit codes carry semantic meaning.",
+            "4. deterministic write responses: successful writes print an ID/URL.",
+            "5. no TTY assumption: actions requiring confirmation exit immediately with code 2 if '--yes' is not given.",
+            "6. rate-limit transparency: on 429 the Retry-After header is read.",
+            "7. silent success: short message in human mode, clean output in script mode.",
+            "8. network resilience and idempotency: POST operations are protected with an X-Idempotency-Key.",
+            "9. one-command discoverability: 'actos help --json' returns the full command tree.",
+            "10. version and compatibility: 'actos version --json' reports the CLI and server versions.",
         ];
 
         let target_cmd = if let Some(sub_name) = command_name {
@@ -172,7 +182,7 @@ pub fn handle_help(command_name: Option<&str>, is_json: bool) -> Result<(), CliE
         let schema = json!({
             "name": "actos",
             "version": env!("CARGO_PKG_VERSION"),
-            "description": "Actos platformu için resmi komut satırı aracı",
+            "description": "Official command-line tool for the Actos platform",
             "exit_codes": exit_codes,
             "agent_contract_rules": agent_contract_rules,
             "command": command_to_json(&target_cmd),

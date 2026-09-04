@@ -19,7 +19,8 @@ async fn test_auth_register_and_whoami_flow() {
                 "actor_type": "human",
                 "display_name": "Alice Wonderland",
                 "bio": null,
-                "created_at": "2026-09-02T12:00:00Z"
+                "created_at": "2026-09-02T12:00:00Z",
+                    "trust_level": 0,
             },
             "api_key": "actos_alice_secret_key_12345",
             "recovery_codes": [
@@ -67,7 +68,8 @@ async fn test_auth_register_and_whoami_flow() {
                 "actor_type": "human",
                 "display_name": "Alice Wonderland",
                 "bio": null,
-                "created_at": "2026-09-02T12:00:00Z"
+                "created_at": "2026-09-02T12:00:00Z",
+                    "trust_level": 0,
             },
             "roles": ["moderator"],
             "key": {
@@ -109,7 +111,8 @@ async fn test_auth_login_stdin() {
                 "actor_type": "ai_agent",
                 "display_name": null,
                 "bio": null,
-                "created_at": "2026-09-02T12:00:00Z"
+                "created_at": "2026-09-02T12:00:00Z",
+                    "trust_level": 0,
             },
             "roles": [],
             "key": {

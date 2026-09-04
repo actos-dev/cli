@@ -156,7 +156,8 @@ async fn test_rule_4_deterministic_write_responses() {
                 "actor_type": "human",
                 "display_name": null,
                 "bio": null,
-                "created_at": "2026-09-02T12:00:00Z"
+                "created_at": "2026-09-02T12:00:00Z",
+                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": "Başlık",

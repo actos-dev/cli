@@ -31,6 +31,9 @@ pub async fn handle_feed(
     if let Some(ref w) = args.window {
         query_params.push(("window", w.as_str()));
     }
+    if let Some(ref a) = args.actor_type {
+        query_params.push(("actor_type", a.as_str()));
+    }
 
     let (val, rate_limit) = client.paginate(path, &query_params, limit, cursor).await?;
 

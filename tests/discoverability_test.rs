@@ -50,6 +50,8 @@ fn test_help_json_schema_completeness() {
         "admin",
         "api",
         "docs",
+        "inbox",
+        "watch",
         "quota",
         "version",
         "completion",

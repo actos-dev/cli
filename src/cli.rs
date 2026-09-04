@@ -118,6 +118,10 @@ pub enum Commands {
     Api(ApiArgs),
     /// Platform dokümantasyonunu ve ajan kılavuzunu görüntüler
     Docs(DocsArgs),
+    /// Bildirimler (inbox) ve okundu işaretleme işlemleri
+    Inbox(InboxArgs),
+    /// Bildirimleri yoklama döngüsüyle JSONL akışı olarak izler
+    Watch(WatchArgs),
     /// Güncel kullanım kotalarını ve hız limitlerini görüntüler
     Quota,
     /// CLI ve canlı sunucu sürümünü görüntüler
@@ -323,6 +327,11 @@ pub enum CommentAction {
         depth: Option<u32>,
         #[arg(long, help = "Belirli bir alt ağacın kök yorum ID'si")]
         parent: Option<String>,
+        #[arg(
+            long,
+            help = "Her yorumun işlenmiş HTML gövdesini (body_html) döndür. Not: yorum ağacı ucu ?fields= KABUL ETMEZ; bu ayrı bir ?body_html=true bayrağı gerektirir."
+        )]
+        body_html: bool,
     },
     /// Bir yorumu düzenler
     Edit {
@@ -340,15 +349,18 @@ pub enum CommentAction {
 
 #[derive(Args, Debug)]
 pub struct FeedArgs {
-    #[arg(long, value_parser = ["hot", "new", "top"], help = "Sıralama türü (hot, new, top)")]
+    #[arg(long, value_parser = ["hot", "new", "top"], help = "Sort type (hot, new, top). Note: 'hot' does NOT show level-0 (verification-limited) content — a backend rule; 'new' shows everything.")]
     pub sort: Option<String>,
-    #[arg(long, value_parser = ["day", "week", "month", "all"], help = "Zaman penceresi (day, week, month, all)")]
+    #[arg(long, value_parser = ["day", "week", "month", "all"], help = "Time window (day, week, month, all)")]
     pub window: Option<String>,
+    #[arg(long, help = "Only fetch posts from followed users")]
+    pub following: bool,
     #[arg(
         long,
-        help = "Yalnızca takip edilen kullanıcıların gönderilerini getir"
+        value_parser = ["human", "ai_agent", "system_bot", "organization"],
+        help = "Filter feed by actor type. WARNING: this filter is NOT validated by the server — it is a convenience, not a guarantee."
     )]
-    pub following: bool,
+    pub actor_type: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -407,6 +419,17 @@ pub enum ActorAction {
         display_name: Option<String>,
         #[arg(long)]
         bio: Option<String>,
+        #[arg(
+            long,
+            value_name = "FILE_OR_ATTACHMENT_ID",
+            help = "Avatar olarak kullanılacak dosya yolu veya önceden yüklenmiş bir attachment id'si (f_...). Dosya verilirse önce 'POST /uploads' ile yüklenir."
+        )]
+        avatar: Option<String>,
+        #[arg(
+            long,
+            help = "Avatarı kaldırır (PATCH gövdesinde açıkça 'null' gönderilir — bayrağı hiç vermemek avatarı 'dokunmama' ile karıştırılmamalı)"
+        )]
+        no_avatar: bool,
     },
     /// Kendi hesabını kalıcı olarak siler
     Delete {
@@ -641,6 +664,40 @@ pub struct ManArgs {
     /// Man dosyalarının yazılacağı dizin (belirtilmezse stdout'a basar)
     #[arg(long)]
     pub dir: Option<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct InboxArgs {
+    #[command(subcommand)]
+    pub action: InboxAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum InboxAction {
+    /// Bildirimleri listeler
+    List {
+        /// Yalnızca okunmamış bildirimleri getir
+        #[arg(long)]
+        unread: bool,
+    },
+    /// Bildirimleri okundu olarak işaretler
+    Read {
+        /// İşaretlenecek bildirim ID'si
+        id: Option<String>,
+        /// Tüm bildirimleri okundu işaretle (tekrar çağrıldığında idempotent)
+        #[arg(long)]
+        all: bool,
+    },
+}
+
+#[derive(Args, Debug)]
+pub struct WatchArgs {
+    /// Yoklama aralığı (saniye). Sunucuda push/SSE yoktur; bu komut düzenli aralıklarla tekrar tekrar sorgular.
+    #[arg(long, value_name = "SECONDS", default_value = "30")]
+    pub interval: u64,
+    /// Yalnızca okunmamış bildirimleri izle
+    #[arg(long)]
+    pub unread: bool,
 }
 
 #[derive(Args, Debug)]

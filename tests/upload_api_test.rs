@@ -144,7 +144,8 @@ async fn test_post_create_with_attach() {
                 "actor_type": "human",
                 "display_name": null,
                 "bio": null,
-                "created_at": "2026-09-02T12:00:00Z"
+                "created_at": "2026-09-02T12:00:00Z",
+                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": "Ekli Post",

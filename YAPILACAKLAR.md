@@ -1,5 +1,11 @@
 # Yapılacaklar — CLI
 
+> **GÜNCELLEME (2026-09-05):** publish dışı tüm Faz 17 eksikleri tamamlandı — inbox,
+> watch (yoklama JSONL), avatar (+--no-avatar), feed --actor-type, actor view
+> trust/age, comment-tree --body-html, quota storage, Ajan Sözleşmesi İngilizce,
+> verify düşürüldü. Kapılar yeşil (cargo test, clippy -D warnings, fmt). Kalan yalnızca
+> paketleme/yayın (Faz 16).
+
 > Durum: Faz 0–15 kodlandı ve testleri var (15 test dosyası). Kalan iki
 > blok: **Faz 16 (paketleme/dağıtım)** ve **Faz 17 (backend Faz 18.A
 > eklemeleri)**. Faz 17 o gün backend'de uçlar olmadığı için atlanmıştı;

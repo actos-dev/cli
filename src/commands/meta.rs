@@ -63,8 +63,15 @@ pub async fn handle_quota(client: &ApiClient, output: &OutputContext) -> Result<
         .execute_request(Method::GET, path, None, None, None)
         .await?;
 
+    // Kullanilan kota = toplam - kalan (yalnızca ikisi de biliniyorsa).
+    let used = rate_limit
+        .limit
+        .zip(rate_limit.remaining)
+        .map(|(l, r)| l.saturating_sub(r));
+
     if output.json {
         let res = json!({
+            "used": used,
             "limit": rate_limit.limit,
             "remaining": rate_limit.remaining,
             "reset_timestamp": rate_limit.reset,
@@ -83,13 +90,17 @@ pub async fn handle_quota(client: &ApiClient, output: &OutputContext) -> Result<
 
         table.add_row(vec!["Tier", auth_status]);
         table.add_row(vec![
-            "Limit",
+            "Rate Limit (total)",
             &rate_limit
                 .limit
                 .map_or_else(|| "unlimited".to_string(), |v| v.to_string()),
         ]);
         table.add_row(vec![
-            "Remaining",
+            "Rate Limit (used)",
+            &used.map_or_else(|| "unknown".to_string(), |v| v.to_string()),
+        ]);
+        table.add_row(vec![
+            "Rate Limit (remaining)",
             &rate_limit
                 .remaining
                 .map_or_else(|| "unknown".to_string(), |v| v.to_string()),
@@ -100,8 +111,15 @@ pub async fn handle_quota(client: &ApiClient, output: &OutputContext) -> Result<
                 .reset
                 .map_or_else(|| "none".to_string(), |v| v.to_string()),
         ]);
+        table.add_row(vec![
+            "Storage Quota",
+            "not exposed by server (v1; only the 8 MB/file upload cap applies)",
+        ]);
 
         println!("{table}");
+        println!(
+            "Note: this is your API rate-limit quota (used/total). Server v1 does not expose a per-actor storage byte quota."
+        );
     }
 
     Ok(())

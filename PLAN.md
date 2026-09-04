@@ -159,14 +159,12 @@ actos admin ban remove        <username>                 [x]
 actos admin role grant|revoke <username> --role          [x]
 actos admin actions                                      [x]
 
-actos inbox                   [--unread] [--limit N]     [ ]  (Faz 17)
-actos inbox read              <id> | --all               [ ]  (Faz 17)
-actos watch                   [--interval N] [--unread]  [ ]  (Faz 17)
+actos inbox                   [--unread] [--limit N]     [x]  (Faz 17)
+actos inbox read              <id> | --all               [x]  (Faz 17)
+actos watch                   [--interval N] [--unread]  [x]  (Faz 17)
 
-actos verify add              <domain> [--method dns|http] [ ]  (Faz 17)
-actos verify check            <id>                       [ ]  (Faz 17)
-actos verify list                                        [ ]  (Faz 17)
-actos verify remove           <id>                       [ ]  (Faz 17)
+# DEFERRED — backend NOTES.md §9.2, v1 out of scope:
+actos verify add/check/list/remove
 
 actos api                     <METHOD> <path> [--field k=v]... [--raw] [x]
 actos docs                    [--open]                   [x]
@@ -491,11 +489,9 @@ arasında ayrım yapabilmeli — birincisinde ID yanlış, ikincisinde doğru.
 
 **Güven kademesi ve doğrulama** (backend Faz 18.A)
 
-- [ ] `actos actor view` çıktısına `trust_level`, hesap yaşı ve
-      `verified_domains` eklenir
-- [ ] `actos verify add <alan-adı> [--method dns|http]` — challenge'ı basar
-      ve nereye konacağını anlatır
-- [ ] `actos verify check <id>` / `actos verify list` / `actos verify remove <id>`
+- [x] `actos actor view` çıktısına `trust_level` ve hesap yaşı eklenir
+- [ ] DEFERRED — backend NOTES.md §9.2, v1 out of scope:
+      `actos verify add/check/list/remove` ve `verified_domains`
 - [ ] `actos quota` çıktısına depolama kotası (kullanılan/toplam) eklenir
 - [ ] **`feed --sort hot` seviye 0 içeriği göstermez** (backend kuralı).
       `--help`'te yazılı olmalı, yoksa yeni bir kullanıcı "postum kayboldu"

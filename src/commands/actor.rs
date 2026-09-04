@@ -37,7 +37,16 @@ pub async fn handle_actor(
                 if let Some(bio) = &actor.bio {
                     println!("Bio:          {bio}");
                 }
+                if let Some(av) = &actor.avatar_url {
+                    println!("Avatar:       {av}");
+                }
                 println!("Joined:       {}", actor.created_at);
+                // Güven kademesi nötr durum bilgisidir, bir rütbe değil.
+                println!(
+                    "Trust Level:  {} (0-2; neutral status, not a rank)",
+                    actor.trust_level
+                );
+                println!("Account Age:  {}", format_account_age(&actor.created_at));
                 println!("\nStats:");
                 println!("  Posts:      {}", profile.stats.post_count);
                 println!("  Comments:   {}", profile.stats.comment_count);
@@ -82,16 +91,27 @@ pub async fn handle_actor(
             }
         }
 
-        ActorAction::Update { display_name, bio } => {
+        ActorAction::Update {
+            display_name,
+            bio,
+            avatar,
+            no_avatar,
+        } => {
             if client.api_key().is_none() {
                 return Err(CliError::Auth(
                     "Authentication required to update profile. Run 'actos auth login' or set ACTOS_API_KEY.".to_string(),
                 ));
             }
 
-            if display_name.is_none() && bio.is_none() {
+            if no_avatar && avatar.is_some() {
                 return Err(CliError::Usage(
-                    "At least one of '--display-name' or '--bio' must be provided.".to_string(),
+                    "Use either '--avatar' or '--no-avatar', not both.".to_string(),
+                ));
+            }
+
+            if display_name.is_none() && bio.is_none() && avatar.is_none() && !no_avatar {
+                return Err(CliError::Usage(
+                    "At least one of '--display-name', '--bio', '--avatar' or '--no-avatar' must be provided.".to_string(),
                 ));
             }
 
@@ -101,6 +121,19 @@ pub async fn handle_actor(
             }
             if let Some(b) = bio {
                 patch_map.insert("bio".to_string(), json!(b));
+            }
+            // avatar üç durumlu: anahtar yok = "dokunma", null = "kaldır",
+            // id = "ata". `--no-avatar` açıkça `null` gönderir.
+            if no_avatar {
+                patch_map.insert("avatar".to_string(), serde_json::Value::Null);
+            } else if let Some(av) = avatar {
+                let attachment_id = if av.starts_with("f_") {
+                    av
+                } else {
+                    let up = crate::commands::upload::upload_file(client, &av).await?;
+                    up.id
+                };
+                patch_map.insert("avatar".to_string(), json!(attachment_id));
             }
 
             let bytes_body = serde_json::to_vec(&patch_map).map_err(|e| {
@@ -280,4 +313,58 @@ pub async fn handle_actor(
     }
 
     Ok(())
+}
+
+/// RFC 3339 bir zaman damgasını UNIX epoch saniyesine (yaklaşık) çevirir.
+/// Sunucu çıktısını okumak için yeterli; harici bir zaman kitaplığı gerektirmez.
+/// Çözülemeyen girdi için `None` döner.
+fn rfc3339_to_epoch(s: &str) -> Option<i64> {
+    let base = s.get(..19)?;
+    let (date, time) = base.split_once('T')?;
+
+    let mut date_it = date.split('-');
+    let year: i64 = date_it.next()?.parse().ok()?;
+    let month: i64 = date_it.next()?.parse().ok()?;
+    let day: i64 = date_it.next()?.parse().ok()?;
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return None;
+    }
+
+    let mut time_it = time.split(':');
+    let hour: i64 = time_it.next()?.parse().ok()?;
+    let minute: i64 = time_it.next()?.parse().ok()?;
+    let second: i64 = time_it.next()?.parse().ok()?;
+
+    // Howard Hinnant'ın gün-sayısı algoritması (proleptic Gregorian).
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = if month > 2 { month - 3 } else { month + 9 };
+    let doy = (153 * mp + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+
+    Some(days * 86_400 + hour * 3_600 + minute * 60 + second)
+}
+
+/// Hesap yaşını nötr, insan-okur bir biçimde ("3 days", "2 months",
+/// "1 year") üretir. Tarih çözülemezse yalnızca ham zaman damgasını döner.
+fn format_account_age(created_at: &str) -> String {
+    let Some(created_epoch) = rfc3339_to_epoch(created_at) else {
+        return created_at.to_string();
+    };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs() as i64);
+    let age_days = (now - created_epoch).max(0) / 86_400;
+
+    if age_days < 1 {
+        "today".to_string()
+    } else if age_days < 30 {
+        format!("{age_days} day(s)")
+    } else if age_days < 365 {
+        format!("{} month(s)", age_days / 30)
+    } else {
+        format!("{} year(s)", age_days / 365)
+    }
 }

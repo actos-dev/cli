@@ -10,6 +10,7 @@ use actos::commands::completion::handle_completion;
 use actos::commands::config::handle_config;
 use actos::commands::feed::handle_feed;
 use actos::commands::help::handle_help;
+use actos::commands::inbox::handle_inbox;
 use actos::commands::man::handle_man;
 use actos::commands::meta::{handle_docs, handle_quota, handle_version};
 use actos::commands::post::handle_post;
@@ -19,6 +20,7 @@ use actos::commands::search::handle_search;
 use actos::commands::tag::handle_tag;
 use actos::commands::upload::handle_upload;
 use actos::commands::vote::handle_vote;
+use actos::commands::watch::handle_watch;
 use actos::config::Config;
 use actos::error::{CliError, ExitCode};
 use clap::Parser;
@@ -65,6 +67,10 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         }
         Commands::Api(args) => handle_api(args, &client, &output).await,
         Commands::Docs(args) => handle_docs(args.open, &client, &output).await,
+        Commands::Inbox(args) => {
+            handle_inbox(args.action, &client, &output, limit, cursor.as_deref()).await
+        }
+        Commands::Watch(args) => handle_watch(args, &client, &output, limit).await,
         Commands::Quota => handle_quota(&client, &output).await,
         Commands::Version => handle_version(&client, &output).await,
         Commands::Completion(args) => handle_completion(&args.shell),

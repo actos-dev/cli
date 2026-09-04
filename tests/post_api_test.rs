@@ -22,7 +22,8 @@ async fn test_post_create_literal_file_stdin() {
                 "actor_type": "human",
                 "display_name": null,
                 "bio": null,
-                "created_at": "2026-09-02T12:00:00Z"
+                "created_at": "2026-09-02T12:00:00Z",
+                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": "Başlık",
@@ -114,7 +115,8 @@ async fn test_post_view_200_and_url_parsing() {
                 "actor_type": "human",
                 "display_name": "Alice",
                 "bio": null,
-                "created_at": "2026-09-02T12:00:00Z"
+                "created_at": "2026-09-02T12:00:00Z",
+                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": "Harika Bir Gönderi",
@@ -209,7 +211,8 @@ async fn test_post_edit() {
                 "actor_type": "human",
                 "display_name": null,
                 "bio": null,
-                "created_at": "2026-09-02T12:00:00Z"
+                "created_at": "2026-09-02T12:00:00Z",
+                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": "Güncellenmiş Başlık",
@@ -300,7 +303,8 @@ async fn test_post_list_pagination() {
                         "actor_type": "human",
                         "display_name": null,
                         "bio": null,
-                        "created_at": "2026-09-02T12:00:00Z"
+                        "created_at": "2026-09-02T12:00:00Z",
+                            "trust_level": 0,
                     },
                     "author_deleted": false,
                     "title": "Post 1",

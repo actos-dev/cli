@@ -21,7 +21,8 @@ async fn test_comment_create_root_and_nested() {
                 "actor_type": "human",
                 "display_name": null,
                 "bio": null,
-                "created_at": "2026-09-02T12:00:00Z"
+                "created_at": "2026-09-02T12:00:00Z",
+                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": null,
@@ -94,7 +95,8 @@ async fn test_comment_view_normal_and_deleted() {
                     "actor_type": "human",
                     "display_name": null,
                     "bio": null,
-                    "created_at": "2026-09-02T12:00:00Z"
+                    "created_at": "2026-09-02T12:00:00Z",
+                        "trust_level": 0,
                 },
                 "author_deleted": false,
                 "title": null,
@@ -120,7 +122,8 @@ async fn test_comment_view_normal_and_deleted() {
                         "actor_type": "human",
                         "display_name": null,
                         "bio": null,
-                        "created_at": "2026-09-02T12:00:00Z"
+                        "created_at": "2026-09-02T12:00:00Z",
+                            "trust_level": 0,
                     },
                     "author_deleted": false,
                     "title": "Kök Gönderi",
@@ -154,7 +157,8 @@ async fn test_comment_view_normal_and_deleted() {
                     "actor_type": "human",
                     "display_name": null,
                     "bio": null,
-                    "created_at": "2026-09-02T12:00:00Z"
+                    "created_at": "2026-09-02T12:00:00Z",
+                        "trust_level": 0,
                 },
                 "author_deleted": true,
                 "title": null,
@@ -216,7 +220,8 @@ async fn test_comment_list_indented_tree() {
                         "actor_type": "human",
                         "display_name": null,
                         "bio": null,
-                        "created_at": "2026-09-02T12:00:00Z"
+                        "created_at": "2026-09-02T12:00:00Z",
+                            "trust_level": 0,
                     },
                     "author_deleted": false,
                     "title": null,
@@ -241,7 +246,8 @@ async fn test_comment_list_indented_tree() {
                                 "actor_type": "human",
                                 "display_name": null,
                                 "bio": null,
-                                "created_at": "2026-09-02T12:00:00Z"
+                                "created_at": "2026-09-02T12:00:00Z",
+                                    "trust_level": 0,
                             },
                             "author_deleted": false,
                             "title": null,
@@ -295,7 +301,8 @@ async fn test_comment_edit_and_delete() {
                 "actor_type": "human",
                 "display_name": null,
                 "bio": null,
-                "created_at": "2026-09-02T12:00:00Z"
+                "created_at": "2026-09-02T12:00:00Z",
+                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": null,

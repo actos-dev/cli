@@ -107,6 +107,7 @@ pub async fn handle_comment(
             sort,
             depth,
             parent,
+            body_html,
         } => {
             let p_id = parse_content_id(&post_id);
             let path = format!("/posts/{p_id}/comments");
@@ -120,6 +121,9 @@ pub async fn handle_comment(
             }
             if let Some(p) = parent {
                 query_params.push(("parent", parse_content_id(&p)));
+            }
+            if body_html {
+                query_params.push(("body_html", "true".to_string()));
             }
 
             let query_refs: Vec<(&str, &str)> =
