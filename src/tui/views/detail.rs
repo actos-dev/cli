@@ -5,7 +5,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
 use crate::tui::app::App;
-use actos_types::content::CommentNodeResponse;
+use actos_sdk::actos_types::content::CommentNodeResponse;
 
 fn build_comment_lines(node: &CommentNodeResponse, depth: usize, out: &mut Vec<Line>) {
     let indent = "  ".repeat(depth);

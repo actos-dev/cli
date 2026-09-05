@@ -22,16 +22,13 @@ pub async fn handle_auth(
             display_name,
             save,
         } => {
-            let req_body = json!({
-                "username": username,
-                "actor_type": r#type,
-                "display_name": display_name,
-            });
+            let mut builder = client.auth().register(username, r#type);
+            if let Some(dn) = display_name {
+                builder = builder.display_name(dn);
+            }
 
-            let (val, rate_limit) = client.post_json("/auth/register", &req_body, None).await?;
-
-            let res: actos_types::auth::RegisterResponse = serde_json::from_value(val.clone())
-                .map_err(|e| CliError::General(format!("Invalid register response: {e}")))?;
+            let res = builder.send().await.map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             if save {
                 let _ = config.set(target_profile, "api_key", &res.api_key);
@@ -41,7 +38,9 @@ pub async fn handle_auth(
             }
 
             if output.json {
-                output.print_json(&val, Some(rate_limit));
+                let val = serde_json::to_value(&res)
+                    .map_err(|e| CliError::General(format!("Failed to serialize register: {e}")))?;
+                output.print_json(&val, Some(rl));
             } else {
                 println!("Account registered successfully!");
                 println!("Username:     {}", res.actor.username);
@@ -90,18 +89,14 @@ pub async fn handle_auth(
                 return Err(CliError::Auth("Provided API key is empty.".to_string()));
             }
 
-            // Doğrulamak için geçici bir ApiClient ile whoami çağrısı yap
-            let test_client = ApiClient::new(
-                client.base_url().to_string(),
-                Some(api_key.clone()),
-                30,
-                false,
-                false,
-            )?;
-
-            let (val, rate_limit) = test_client.get_json("/auth/whoami", None).await?;
-            let whoami: actos_types::auth::WhoamiResponse = serde_json::from_value(val)
-                .map_err(|e| CliError::General(format!("Invalid whoami response: {e}")))?;
+            // Doğrulamak için geçici bir SDK istemcisiyle whoami çağrısı yap
+            let test_client = actos_sdk::Actos::builder()
+                .base_url(client.base_url())
+                .api_key(api_key.clone())
+                .build()
+                .map_err(CliError::from)?;
+            let whoami = test_client.auth().whoami().await.map_err(CliError::from)?;
+            let rate_limit = test_client.rate_limit().map(Into::into).unwrap_or_default();
 
             let _ = config.set(target_profile, "api_key", &api_key);
             let _ = config.set(target_profile, "username", &whoami.actor.username);
@@ -130,14 +125,14 @@ pub async fn handle_auth(
                 ));
             }
 
-            let (val, rate_limit) = client.get_json("/auth/whoami", None).await?;
+            let whoami = client.auth().whoami().await.map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             if output.json {
-                output.print_json(&val, Some(rate_limit));
+                let val = serde_json::to_value(&whoami)
+                    .map_err(|e| CliError::General(format!("Failed to serialize whoami: {e}")))?;
+                output.print_json(&val, Some(rl));
             } else {
-                let whoami: actos_types::auth::WhoamiResponse = serde_json::from_value(val)
-                    .map_err(|e| CliError::General(format!("Invalid whoami response: {e}")))?;
-
                 println!("Actor ID:     {}", whoami.actor.id);
                 println!("Username:     {}", whoami.actor.username);
                 println!("Actor Type:   {}", whoami.actor.actor_type);
@@ -168,16 +163,13 @@ pub async fn handle_auth(
                     ));
                 }
 
-                let (val, rate_limit) = client.get_json("/auth/keys", None).await?;
+                let keys = client.auth().list_keys().await.map_err(CliError::from)?;
+                let rl = client.rate_limit_info().unwrap_or_default();
 
                 if output.json {
-                    output.print_json(&val, Some(rate_limit));
+                    let val = json!({ "keys": keys });
+                    output.print_json(&val, Some(rl));
                 } else {
-                    let list: actos_types::auth::ListKeysResponse = serde_json::from_value(val)
-                        .map_err(|e| {
-                            CliError::General(format!("Invalid keys list response: {e}"))
-                        })?;
-
                     let mut table = Table::new();
                     table.load_preset(UTF8_FULL);
                     table.set_header(vec![
@@ -188,7 +180,7 @@ pub async fn handle_auth(
                         "Revoked At",
                     ]);
 
-                    for k in &list.keys {
+                    for k in &keys {
                         table.add_row(vec![
                             k.id.clone(),
                             k.label.as_deref().unwrap_or("-").to_string(),
@@ -209,17 +201,19 @@ pub async fn handle_auth(
                     ));
                 }
 
-                let req = json!({ "label": label });
-                let (val, rate_limit) = client.post_json("/auth/keys", &req, None).await?;
+                let mut builder = client.auth().create_key();
+                if let Some(l) = label {
+                    builder = builder.label(l);
+                }
+                let res = builder.send().await.map_err(CliError::from)?;
+                let rl = client.rate_limit_info().unwrap_or_default();
 
                 if output.json {
-                    output.print_json(&val, Some(rate_limit));
+                    let val = serde_json::to_value(&res).map_err(|e| {
+                        CliError::General(format!("Failed to serialize key creation: {e}"))
+                    })?;
+                    output.print_json(&val, Some(rl));
                 } else {
-                    let res: actos_types::auth::CreateKeyResponse = serde_json::from_value(val)
-                        .map_err(|e| {
-                            CliError::General(format!("Invalid key creation response: {e}"))
-                        })?;
-
                     println!("API Key created successfully!");
                     println!("Key ID:   {}", res.key.id);
                     println!("Label:    {}", res.key.label.as_deref().unwrap_or("-"));
@@ -235,20 +229,16 @@ pub async fn handle_auth(
                     ));
                 }
 
-                let path = format!("/auth/keys/{key_id}");
-                let (status, _headers, _bytes, rate_limit) = client
-                    .execute_request(reqwest::Method::DELETE, &path, None, None, None)
-                    .await?;
-
-                if !status.is_success() {
-                    return Err(CliError::General(format!(
-                        "Failed to revoke key '{key_id}'"
-                    )));
-                }
+                client
+                    .auth()
+                    .revoke_key(&key_id)
+                    .await
+                    .map_err(CliError::from)?;
+                let rl = client.rate_limit_info().unwrap_or_default();
 
                 if output.json {
                     let res = json!({ "status": "revoked", "key_id": key_id });
-                    output.print_json(&res, Some(rate_limit));
+                    output.print_json(&res, Some(rl));
                 } else {
                     println!("API key '{key_id}' revoked.");
                 }
@@ -260,15 +250,12 @@ pub async fn handle_auth(
             code,
             save,
         } => {
-            let req = json!({
-                "username": username,
-                "recovery_code": code,
-            });
-
-            let (val, rate_limit) = client.post_json("/auth/recover", &req, None).await?;
-
-            let res: actos_types::auth::RecoverResponse = serde_json::from_value(val.clone())
-                .map_err(|e| CliError::General(format!("Invalid recovery response: {e}")))?;
+            let res = client
+                .auth()
+                .recover(&username, &code)
+                .await
+                .map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             if save {
                 let _ = config.set(target_profile, "api_key", &res.api_key);
@@ -277,7 +264,9 @@ pub async fn handle_auth(
             }
 
             if output.json {
-                output.print_json(&val, Some(rate_limit));
+                let val = serde_json::to_value(&res)
+                    .map_err(|e| CliError::General(format!("Failed to serialize recovery: {e}")))?;
+                output.print_json(&val, Some(rl));
             } else {
                 println!("Account recovered successfully!");
                 println!("New API Key (displayed once):");
@@ -297,18 +286,19 @@ pub async fn handle_auth(
                     ));
                 }
 
-                let (val, rate_limit) = client
-                    .post_json("/auth/recovery-codes/regenerate", &json!({}), None)
-                    .await?;
+                let res = client
+                    .auth()
+                    .regenerate_recovery_codes()
+                    .await
+                    .map_err(CliError::from)?;
+                let rl = client.rate_limit_info().unwrap_or_default();
 
                 if output.json {
-                    output.print_json(&val, Some(rate_limit));
+                    let val = serde_json::to_value(&res).map_err(|e| {
+                        CliError::General(format!("Failed to serialize recovery codes: {e}"))
+                    })?;
+                    output.print_json(&val, Some(rl));
                 } else {
-                    let res: actos_types::auth::RegenerateRecoveryCodesResponse =
-                        serde_json::from_value(val).map_err(|e| {
-                            CliError::General(format!("Invalid regenerate recovery response: {e}"))
-                        })?;
-
                     println!("10 new recovery codes generated (previous codes are now invalid!):");
                     for (i, code) in res.recovery_codes.iter().enumerate() {
                         println!("{:2}. {code}", i + 1);

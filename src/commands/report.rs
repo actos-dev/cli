@@ -32,10 +32,10 @@ pub async fn handle_report(
 
             let (val, rate_limit) = client.post_json("/reports", &req_body, None).await?;
 
-            let res: actos_types::moderation::ReportSummary = serde_json::from_value(val.clone())
-                .map_err(|e| {
-                CliError::General(format!("Invalid report creation response: {e}"))
-            })?;
+            let res: actos_sdk::actos_types::moderation::ReportSummary =
+                serde_json::from_value(val.clone()).map_err(|e| {
+                    CliError::General(format!("Invalid report creation response: {e}"))
+                })?;
 
             if output.json {
                 output.print_json(&val, Some(rate_limit));

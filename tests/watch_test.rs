@@ -19,7 +19,7 @@ fn client_for(base_url: &str) -> ApiClient {
         false,
         false,
     )
-    .expect("valid client")
+    .unwrap_or_else(|e| panic!("could not build client: {e}"))
 }
 
 fn notif(id: &str) -> serde_json::Value {

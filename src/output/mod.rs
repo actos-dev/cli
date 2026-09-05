@@ -1,6 +1,6 @@
 pub mod filter;
 
-use crate::client::ratelimit::RateLimitInfo;
+use crate::error::RateLimitInfo;
 use serde_json::Value;
 
 /// CLI çıktı bağlamı ve kuralları (`PLAN.md` Faz 3).

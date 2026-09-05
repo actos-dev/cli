@@ -37,8 +37,9 @@ pub async fn handle_vote(
             if output.json {
                 output.print_json(&val, Some(rate_limit));
             } else {
-                let res: actos_types::interaction::VoteResponse = serde_json::from_value(val)
-                    .map_err(|e| CliError::General(format!("Invalid vote response: {e}")))?;
+                let res: actos_sdk::actos_types::interaction::VoteResponse =
+                    serde_json::from_value(val)
+                        .map_err(|e| CliError::General(format!("Invalid vote response: {e}")))?;
 
                 println!(
                     "Upvoted '{content_id}'. Score: {} (+{} / -{})",
@@ -64,8 +65,9 @@ pub async fn handle_vote(
             if output.json {
                 output.print_json(&val, Some(rate_limit));
             } else {
-                let res: actos_types::interaction::VoteResponse = serde_json::from_value(val)
-                    .map_err(|e| CliError::General(format!("Invalid vote response: {e}")))?;
+                let res: actos_sdk::actos_types::interaction::VoteResponse =
+                    serde_json::from_value(val)
+                        .map_err(|e| CliError::General(format!("Invalid vote response: {e}")))?;
 
                 println!(
                     "Downvoted '{content_id}'. Score: {} (+{} / -{})",
@@ -91,8 +93,9 @@ pub async fn handle_vote(
             if output.json {
                 output.print_json(&val, Some(rate_limit));
             } else {
-                let res: actos_types::interaction::VoteResponse = serde_json::from_value(val)
-                    .map_err(|e| CliError::General(format!("Invalid vote response: {e}")))?;
+                let res: actos_sdk::actos_types::interaction::VoteResponse =
+                    serde_json::from_value(val)
+                        .map_err(|e| CliError::General(format!("Invalid vote response: {e}")))?;
 
                 println!(
                     "Cleared vote for '{content_id}'. Score: {} (+{} / -{})",
@@ -115,7 +118,7 @@ pub async fn handle_vote(
             if output.json {
                 output.print_json(&val, Some(rate_limit));
             } else {
-                let vote_map: actos_types::interaction::VoteMapResponse =
+                let vote_map: actos_sdk::actos_types::interaction::VoteMapResponse =
                     serde_json::from_value(val).map_err(|e| {
                         CliError::General(format!("Invalid vote map response: {e}"))
                     })?;

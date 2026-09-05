@@ -1,5 +1,5 @@
-use actos::client::ratelimit::RateLimitInfo;
 use actos::error::ExitCode;
+use actos::error::RateLimitInfo;
 use actos::output::OutputContext;
 use actos::output::filter::filter_fields;
 use assert_cmd::Command;
@@ -80,7 +80,7 @@ fn test_agent_contract_rule_2_stderr_json_error() {
 
 #[test]
 fn test_exit_code_contract_mappings() {
-    use actos_types::ErrorCode;
+    use actos_sdk::actos_types::ErrorCode;
 
     assert_eq!(ExitCode::from(ErrorCode::ValidationFailed).as_i32(), 8);
     assert_eq!(ExitCode::from(ErrorCode::InvalidCursor).as_i32(), 8);

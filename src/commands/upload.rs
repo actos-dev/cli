@@ -1,4 +1,3 @@
-use reqwest::multipart::{Form, Part};
 use serde_json::json;
 use std::path::Path;
 
@@ -9,7 +8,7 @@ use crate::output::OutputContext;
 
 pub const MAX_UPLOAD_BYTES: u64 = 8 * 1024 * 1024; // 8 MB
 
-/// Dosyanın boyutunu ve uzantısını doğrular, dosya içeriği ve MIME türünü döner.
+/// Dosyanın boyutunu ve uzantısını doğrular, dosya adı ve MIME türünü döner.
 pub fn validate_and_read_file(path_str: &str) -> Result<(String, String, Vec<u8>), CliError> {
     let path = Path::new(path_str);
     if !path.is_file() {
@@ -65,7 +64,7 @@ pub fn validate_and_read_file(path_str: &str) -> Result<(String, String, Vec<u8>
 pub async fn upload_file(
     client: &ApiClient,
     file_path: &str,
-) -> Result<actos_types::upload::UploadResponse, CliError> {
+) -> Result<actos_sdk::actos_types::upload::UploadResponse, CliError> {
     if client.api_key().is_none() {
         return Err(CliError::Auth(
             "Authentication required to upload files. Run 'actos auth login' or set ACTOS_API_KEY."
@@ -73,19 +72,16 @@ pub async fn upload_file(
         ));
     }
 
-    let (file_name, mime, bytes) = validate_and_read_file(file_path)?;
+    let (file_name, mime, _bytes) = validate_and_read_file(file_path)?;
 
-    let part = Part::bytes(bytes)
-        .file_name(file_name)
-        .mime_str(&mime)
-        .map_err(|e| CliError::Validation(format!("Invalid MIME type '{mime}': {e}")))?;
-
-    let form = Form::new().part("file", part);
-
-    let (val, _rl) = client.post_multipart("/uploads", form).await?;
-
-    let res: actos_types::upload::UploadResponse = serde_json::from_value(val)
-        .map_err(|e| CliError::General(format!("Invalid upload response: {e}")))?;
+    let res = client
+        .uploads()
+        .create(file_path)
+        .filename(file_name)
+        .mime_type(mime)
+        .send()
+        .await
+        .map_err(CliError::from)?;
 
     Ok(res)
 }
@@ -100,10 +96,12 @@ pub async fn handle_upload(
         UploadAction::Create { file } => {
             let res = upload_file(client, &file).await?;
 
+            let rl = client.rate_limit_info().unwrap_or_default();
+
             if output.json {
                 let val = serde_json::to_value(&res)
                     .map_err(|e| CliError::General(format!("Failed to serialize upload: {e}")))?;
-                output.print_json(&val, None);
+                output.print_json(&val, Some(rl));
             } else {
                 println!("Upload successful: {}", res.id);
                 println!("URL:           {}", res.url);
@@ -126,18 +124,12 @@ pub async fn handle_upload(
                 ));
             }
 
-            let path = format!("/uploads/{id}");
-            let (status, _headers, _bytes, rate_limit) = client
-                .execute_request(reqwest::Method::DELETE, &path, None, None, None)
-                .await?;
-
-            if !status.is_success() {
-                return Err(CliError::General(format!("Failed to delete upload '{id}'")));
-            }
+            client.uploads().delete(&id).await.map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             if output.json {
                 let res = json!({ "status": "deleted", "id": id });
-                output.print_json(&res, Some(rate_limit));
+                output.print_json(&res, Some(rl));
             } else {
                 println!("Upload '{id}' deleted.");
             }

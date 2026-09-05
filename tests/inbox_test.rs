@@ -83,8 +83,8 @@ async fn test_inbox_list_json_includes_unread_count() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
-    let v: serde_json::Value = serde_json::from_str(&stdout)
-        .expect("inbox list --json must emit valid JSON on stdout");
+    let v: serde_json::Value =
+        serde_json::from_str(&stdout).expect("inbox list --json must emit valid JSON on stdout");
     assert_eq!(v["unread_count"], 3, "unread_count must be echoed");
     assert_eq!(
         v["notifications"][0]["id"], "n_1",

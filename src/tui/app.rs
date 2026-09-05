@@ -1,6 +1,6 @@
 use crate::client::ApiClient;
-use actos_types::actor::ActorProfileResponse;
-use actos_types::content::{CommentNodeResponse, ContentSummary};
+use actos_sdk::actos_types::actor::ActorProfileResponse;
+use actos_sdk::actos_types::content::{CommentNodeResponse, ContentSummary};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CurrentTab {

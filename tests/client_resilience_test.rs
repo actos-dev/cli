@@ -1,6 +1,6 @@
 use actos::client::ApiClient;
 use actos::error::ExitCode;
-use wiremock::matchers::{header, header_exists, method, path};
+use wiremock::matchers::{header_exists, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
@@ -140,14 +140,14 @@ async fn test_post_with_idempotency_key_retried_on_500() {
 }
 
 #[tokio::test]
-async fn test_429_fast_fail_without_wait() {
+async fn test_persistent_429_surfaces_rate_limited_after_max_retries() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("GET"))
         .and(path("/quota"))
         .respond_with(
             ResponseTemplate::new(429)
-                .insert_header("Retry-After", "5")
+                .insert_header("Retry-After", "0")
                 .set_body_json(serde_json::json!({
                     "title": "Hız limiti aşıldı",
                     "status": 429,
@@ -162,13 +162,15 @@ async fn test_429_fast_fail_without_wait() {
 
     assert_eq!(err.exit_code(), ExitCode::RateLimited);
     assert_eq!(err.status(), 429);
-    assert_eq!(err.retry_after(), Some(5));
+    assert_eq!(err.retry_after(), Some(0));
 
+    // SDK transport 429'u `Retry-After` uyarınca her zaman yeniden dener
+    // (max_retries=2); kalici 429 en sonunda RATE_LIMITED/exit 9 ile yüzeye çıkar.
     let received = mock_server.received_requests().await.unwrap();
     assert_eq!(
         received.len(),
-        1,
-        "--wait yokken 429 hemen çıkış kodu 9 ile başarısız olmalıdır"
+        3,
+        "Kalıcı 429, azami yeniden deneme sayısına (1 + 2) ulaştıktan sonra çıkış kodu 9 ile başarısız olmalıdır"
     );
 }
 
@@ -218,12 +220,10 @@ async fn test_transparent_cursor_pagination() {
     let mock_server = MockServer::start().await;
 
     // Sayfa 1: 2 öğe, next_cursor = "c_page2"
+    // Not: User-Agent artık SDK transport'a ait (`actos-rust/<v>`); eski
+    // `actos-cli/<v>` matcher'ı kaldırıldı — sayfa ayrımı `up_to_n_times` ile yapılır.
     Mock::given(method("GET"))
         .and(path("/feed"))
-        .and(header(
-            "User-Agent",
-            format!("actos-cli/{}", env!("CARGO_PKG_VERSION")),
-        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "posts": [
                 {"id": "p1", "title": "Post 1"},

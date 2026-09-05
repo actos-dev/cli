@@ -72,26 +72,27 @@ pub async fn handle_post(
                 json!({})
             };
 
-            let mut req_body = json!({
-                "title": title,
-                "body": resolved_body,
-                "tags": tags,
-                "metadata": meta_val,
-            });
-
+            let mut builder = client
+                .posts()
+                .create(title, resolved_body)
+                .metadata(meta_val);
+            builder = builder.tags(tags);
             if !attachment_ids.is_empty() {
-                req_body["attachment_ids"] = json!(attachment_ids);
+                builder = builder.attachment_ids(attachment_ids);
             }
+            let builder = if let Some(k) = idempotency_key {
+                builder.idempotency_key(k)
+            } else {
+                builder
+            };
 
-            let (val, rate_limit) = client
-                .post_json("/posts", &req_body, idempotency_key.as_deref())
-                .await?;
-
-            let post: actos_types::content::ContentSummary = serde_json::from_value(val.clone())
-                .map_err(|e| CliError::General(format!("Invalid post response: {e}")))?;
+            let post = builder.send().await.map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             if output.json {
-                output.print_json(&val, Some(rate_limit));
+                let val = serde_json::to_value(&post)
+                    .map_err(|e| CliError::General(format!("Failed to serialize post: {e}")))?;
+                output.print_json(&val, Some(rl));
             } else {
                 println!("Post created: {}", post.id);
                 println!("{}/posts/{}", client.base_url(), post.id);
@@ -100,21 +101,29 @@ pub async fn handle_post(
 
         PostAction::View { id, comments } => {
             let content_id = parse_content_id(&id);
-            let path = format!("/posts/{content_id}");
 
-            let (post_val, rate_limit) = client.get_json(&path, None).await?;
+            let post = client
+                .posts()
+                .get(&content_id)
+                .send()
+                .await
+                .map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             let comments_val = if let Some(n) = comments {
-                let comments_path = format!("/posts/{content_id}/comments");
                 let limit_str = n.to_string();
                 let query = [("limit", limit_str.as_str())];
-                let (c_val, _) = client.get_json(&comments_path, Some(&query)).await?;
+                let (c_val, _) = client
+                    .get_json(&format!("/posts/{content_id}/comments"), Some(&query))
+                    .await?;
                 Some(c_val)
             } else {
                 None
             };
 
             if output.json {
+                let post_val = serde_json::to_value(&post)
+                    .map_err(|e| CliError::General(format!("Failed to serialize post: {e}")))?;
                 let final_val = if let Some(c) = comments_val {
                     json!({
                         "post": post_val,
@@ -123,13 +132,8 @@ pub async fn handle_post(
                 } else {
                     post_val
                 };
-                output.print_json(&final_val, Some(rate_limit));
+                output.print_json(&final_val, Some(rl));
             } else {
-                let post: actos_types::content::ContentSummary =
-                    serde_json::from_value(post_val.clone()).map_err(|e| {
-                        CliError::General(format!("Invalid post view response: {e}"))
-                    })?;
-
                 println!("Title:   {}", post.title.as_deref().unwrap_or("(no title)"));
                 if let Some(dn) = &post.author.display_name {
                     println!(
@@ -188,27 +192,21 @@ pub async fn handle_post(
                 None
             };
 
-            let mut patch_map = serde_json::Map::new();
+            let mut builder = client.posts().update(&content_id);
             if let Some(t) = title {
-                patch_map.insert("title".to_string(), json!(t));
+                builder = builder.title(t);
             }
-            if let Some(b) = resolved_body {
-                patch_map.insert("body".to_string(), json!(b));
+            if let Some(rb) = resolved_body {
+                builder = builder.body(rb);
             }
 
-            let path = format!("/posts/{content_id}");
-            let bytes_body = serde_json::to_vec(&patch_map)
-                .map_err(|e| CliError::Validation(format!("Failed to serialize edit JSON: {e}")))?;
-
-            let (_status, _headers, bytes, rate_limit) = client
-                .execute_request(reqwest::Method::PATCH, &path, None, Some(bytes_body), None)
-                .await?;
-
-            let val: serde_json::Value = serde_json::from_slice(&bytes)
-                .map_err(|e| CliError::General(format!("Failed to parse response: {e}")))?;
+            let post = builder.send().await.map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             if output.json {
-                output.print_json(&val, Some(rate_limit));
+                let val = serde_json::to_value(&post)
+                    .map_err(|e| CliError::General(format!("Failed to serialize post: {e}")))?;
+                output.print_json(&val, Some(rl));
             } else {
                 println!("Post '{content_id}' updated successfully.");
             }
@@ -229,21 +227,16 @@ pub async fn handle_post(
             }
 
             let content_id = parse_content_id(&id);
-            let path = format!("/posts/{content_id}");
-
-            let (status, _headers, _bytes, rate_limit) = client
-                .execute_request(reqwest::Method::DELETE, &path, None, None, None)
-                .await?;
-
-            if !status.is_success() {
-                return Err(CliError::General(format!(
-                    "Failed to delete post '{content_id}'"
-                )));
-            }
+            client
+                .posts()
+                .delete(&content_id)
+                .await
+                .map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             if output.json {
                 let res = json!({ "status": "deleted", "id": content_id });
-                output.print_json(&res, Some(rate_limit));
+                output.print_json(&res, Some(rl));
             } else {
                 println!("Post '{content_id}' deleted.");
             }

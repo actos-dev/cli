@@ -46,7 +46,7 @@ pub async fn handle_inbox(
                 return Ok(());
             }
 
-            let resp: actos_types::notification::InboxResponse =
+            let resp: actos_sdk::actos_types::notification::InboxResponse =
                 serde_json::from_value(val.clone())
                     .map_err(|e| CliError::General(format!("Invalid inbox response: {e}")))?;
 
@@ -114,7 +114,7 @@ pub async fn handle_inbox(
                     .post_json("/me/inbox/read", &serde_json::json!({}), None)
                     .await?;
 
-                let resp: actos_types::notification::MarkAllReadResponse =
+                let resp: actos_sdk::actos_types::notification::MarkAllReadResponse =
                     serde_json::from_value(val.clone()).map_err(|e| {
                         CliError::General(format!("Invalid mark-all-read response: {e}"))
                     })?;

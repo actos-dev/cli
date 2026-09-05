@@ -380,7 +380,10 @@ mod tests {
         };
         let err = resolved.require_api_key().unwrap_err();
         assert_eq!(err.exit_code(), ExitCode::AuthFailed);
-        assert_eq!(err.error_code(), actos_types::ErrorCode::MissingCredentials);
+        assert_eq!(
+            err.error_code(),
+            actos_sdk::actos_types::ErrorCode::MissingCredentials
+        );
     }
 
     #[test]

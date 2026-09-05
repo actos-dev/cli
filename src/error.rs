@@ -1,6 +1,32 @@
+use reqwest::StatusCode;
 use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+
+/// Unix 0anından sonraki saniye cinsinden hız sınırı penceresi sıfırlanma bilgisi.
+///
+/// Alanlar `Option`'dur çünkü sunucu `X-RateLimit-*` başlıklarını her zaman
+/// göndermeyebilir; SDK bu bilgiyi [`actos_sdk::RateLimit`] olarak taşır ve
+/// bu türe eşlenir.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RateLimitInfo {
+    /// Pencerede izin verilen toplam istek sayısı.
+    pub limit: Option<u32>,
+    /// Pencerede kalan istek sayısı.
+    pub remaining: Option<u32>,
+    /// Pencere sıfırlanana kadar geçen saniye (epoch-reset zaman damgası).
+    pub reset: Option<u64>,
+}
+
+impl From<actos_sdk::RateLimit> for RateLimitInfo {
+    fn from(rl: actos_sdk::RateLimit) -> Self {
+        Self {
+            limit: Some(rl.limit),
+            remaining: Some(rl.remaining),
+            reset: Some(rl.reset),
+        }
+    }
+}
 
 /// CLI çıkış kodları (`PLAN.md` §4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,21 +65,21 @@ impl ExitCode {
     }
 }
 
-impl From<actos_types::ErrorCode> for ExitCode {
-    fn from(code: actos_types::ErrorCode) -> Self {
+impl From<actos_sdk::actos_types::ErrorCode> for ExitCode {
+    fn from(code: actos_sdk::actos_types::ErrorCode) -> Self {
         match code {
-            actos_types::ErrorCode::ValidationFailed
-            | actos_types::ErrorCode::InvalidCursor
-            | actos_types::ErrorCode::UnsupportedMedia => Self::ValidationError,
-            actos_types::ErrorCode::MissingCredentials | actos_types::ErrorCode::InvalidKey => {
-                Self::AuthFailed
-            }
-            actos_types::ErrorCode::Forbidden | actos_types::ErrorCode::Banned => Self::Forbidden,
-            actos_types::ErrorCode::NotFound => Self::NotFound,
-            actos_types::ErrorCode::Gone => Self::Gone,
-            actos_types::ErrorCode::Conflict => Self::Conflict,
-            actos_types::ErrorCode::RateLimited => Self::RateLimited,
-            actos_types::ErrorCode::Internal => Self::ServerError,
+            actos_sdk::actos_types::ErrorCode::ValidationFailed
+            | actos_sdk::actos_types::ErrorCode::InvalidCursor
+            | actos_sdk::actos_types::ErrorCode::UnsupportedMedia => Self::ValidationError,
+            actos_sdk::actos_types::ErrorCode::MissingCredentials
+            | actos_sdk::actos_types::ErrorCode::InvalidKey => Self::AuthFailed,
+            actos_sdk::actos_types::ErrorCode::Forbidden
+            | actos_sdk::actos_types::ErrorCode::Banned => Self::Forbidden,
+            actos_sdk::actos_types::ErrorCode::NotFound => Self::NotFound,
+            actos_sdk::actos_types::ErrorCode::Gone => Self::Gone,
+            actos_sdk::actos_types::ErrorCode::Conflict => Self::Conflict,
+            actos_sdk::actos_types::ErrorCode::RateLimited => Self::RateLimited,
+            actos_sdk::actos_types::ErrorCode::Internal => Self::ServerError,
         }
     }
 }
@@ -70,7 +96,7 @@ pub struct ProblemDetails {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub code: Option<actos_types::ErrorCode>,
+    pub code: Option<actos_sdk::actos_types::ErrorCode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request_id: Option<String>,
 }
@@ -95,7 +121,7 @@ pub enum CliError {
     General(String),
     Io(String),
     Api {
-        code: actos_types::ErrorCode,
+        code: actos_sdk::actos_types::ErrorCode,
         message: String,
         status: u16,
         request_id: Option<String>,
@@ -119,36 +145,36 @@ impl CliError {
             Self::Network(_) => ExitCode::NetworkError,
             Self::General(_) | Self::Io(_) => ExitCode::GeneralError,
             Self::Api { code, .. } => match code {
-                actos_types::ErrorCode::ValidationFailed
-                | actos_types::ErrorCode::InvalidCursor
-                | actos_types::ErrorCode::UnsupportedMedia => ExitCode::ValidationError,
-                actos_types::ErrorCode::MissingCredentials | actos_types::ErrorCode::InvalidKey => {
-                    ExitCode::AuthFailed
-                }
-                actos_types::ErrorCode::Forbidden | actos_types::ErrorCode::Banned => {
-                    ExitCode::Forbidden
-                }
-                actos_types::ErrorCode::NotFound => ExitCode::NotFound,
-                actos_types::ErrorCode::Gone => ExitCode::Gone,
-                actos_types::ErrorCode::Conflict => ExitCode::Conflict,
-                actos_types::ErrorCode::RateLimited => ExitCode::RateLimited,
-                actos_types::ErrorCode::Internal => ExitCode::ServerError,
+                actos_sdk::actos_types::ErrorCode::ValidationFailed
+                | actos_sdk::actos_types::ErrorCode::InvalidCursor
+                | actos_sdk::actos_types::ErrorCode::UnsupportedMedia => ExitCode::ValidationError,
+                actos_sdk::actos_types::ErrorCode::MissingCredentials
+                | actos_sdk::actos_types::ErrorCode::InvalidKey => ExitCode::AuthFailed,
+                actos_sdk::actos_types::ErrorCode::Forbidden
+                | actos_sdk::actos_types::ErrorCode::Banned => ExitCode::Forbidden,
+                actos_sdk::actos_types::ErrorCode::NotFound => ExitCode::NotFound,
+                actos_sdk::actos_types::ErrorCode::Gone => ExitCode::Gone,
+                actos_sdk::actos_types::ErrorCode::Conflict => ExitCode::Conflict,
+                actos_sdk::actos_types::ErrorCode::RateLimited => ExitCode::RateLimited,
+                actos_sdk::actos_types::ErrorCode::Internal => ExitCode::ServerError,
             },
         }
     }
 
     #[must_use]
-    pub const fn error_code(&self) -> actos_types::ErrorCode {
+    pub const fn error_code(&self) -> actos_sdk::actos_types::ErrorCode {
         match self {
-            Self::Usage(_) | Self::Validation(_) => actos_types::ErrorCode::ValidationFailed,
-            Self::Auth(_) => actos_types::ErrorCode::MissingCredentials,
-            Self::Forbidden(_) => actos_types::ErrorCode::Forbidden,
-            Self::NotFound(_) => actos_types::ErrorCode::NotFound,
-            Self::Gone(_) => actos_types::ErrorCode::Gone,
-            Self::Conflict(_) => actos_types::ErrorCode::Conflict,
-            Self::RateLimited { .. } => actos_types::ErrorCode::RateLimited,
+            Self::Usage(_) | Self::Validation(_) => {
+                actos_sdk::actos_types::ErrorCode::ValidationFailed
+            }
+            Self::Auth(_) => actos_sdk::actos_types::ErrorCode::MissingCredentials,
+            Self::Forbidden(_) => actos_sdk::actos_types::ErrorCode::Forbidden,
+            Self::NotFound(_) => actos_sdk::actos_types::ErrorCode::NotFound,
+            Self::Gone(_) => actos_sdk::actos_types::ErrorCode::Gone,
+            Self::Conflict(_) => actos_sdk::actos_types::ErrorCode::Conflict,
+            Self::RateLimited { .. } => actos_sdk::actos_types::ErrorCode::RateLimited,
             Self::Server(_) | Self::Network(_) | Self::General(_) | Self::Io(_) => {
-                actos_types::ErrorCode::Internal
+                actos_sdk::actos_types::ErrorCode::Internal
             }
             Self::Api { code, .. } => *code,
         }
@@ -225,15 +251,15 @@ impl CliError {
             .as_ref()
             .and_then(|p| p.code)
             .unwrap_or_else(|| match status.as_u16() {
-                400 => actos_types::ErrorCode::ValidationFailed,
-                401 => actos_types::ErrorCode::MissingCredentials,
-                403 => actos_types::ErrorCode::Forbidden,
-                404 => actos_types::ErrorCode::NotFound,
-                409 => actos_types::ErrorCode::Conflict,
-                410 => actos_types::ErrorCode::Gone,
-                415 => actos_types::ErrorCode::UnsupportedMedia,
-                429 => actos_types::ErrorCode::RateLimited,
-                _ => actos_types::ErrorCode::Internal,
+                400 => actos_sdk::actos_types::ErrorCode::ValidationFailed,
+                401 => actos_sdk::actos_types::ErrorCode::MissingCredentials,
+                403 => actos_sdk::actos_types::ErrorCode::Forbidden,
+                404 => actos_sdk::actos_types::ErrorCode::NotFound,
+                409 => actos_sdk::actos_types::ErrorCode::Conflict,
+                410 => actos_sdk::actos_types::ErrorCode::Gone,
+                415 => actos_sdk::actos_types::ErrorCode::UnsupportedMedia,
+                429 => actos_sdk::actos_types::ErrorCode::RateLimited,
+                _ => actos_sdk::actos_types::ErrorCode::Internal,
             });
 
         let message = problem
@@ -252,7 +278,7 @@ impl CliError {
                 }
             });
 
-        if code == actos_types::ErrorCode::RateLimited {
+        if code == actos_sdk::actos_types::ErrorCode::RateLimited {
             Self::RateLimited {
                 message,
                 retry_after,
@@ -317,5 +343,62 @@ impl std::error::Error for CliError {}
 impl From<std::io::Error> for CliError {
     fn from(err: std::io::Error) -> Self {
         Self::Io(err.to_string())
+    }
+}
+
+/// Machine-readable error-code string (e.g. `RATE_LIMITED`), used to keep the
+/// user-facing message greppable by agents even when the server omits a detail.
+fn code_name(code: actos_sdk::actos_types::ErrorCode) -> String {
+    serde_json::to_string(&code)
+        .map(|s| s.trim_matches('"').to_string())
+        .unwrap_or_default()
+}
+
+impl From<actos_sdk::Error> for CliError {
+    fn from(e: actos_sdk::Error) -> Self {
+        match e {
+            actos_sdk::Error::Api {
+                code,
+                status,
+                detail,
+                request_id,
+                retry_after,
+                ..
+            } => {
+                // API metni İngilizce kalır; detay yoksa makine-okunur kod eklenir
+                // (ajanlar `RATE_LIMITED` gibi kodlara göre karar verebilir).
+                // SDK `detail` alanını gerçek detay yokken HTTP canonical reason ile
+                // doldurur (örn. "Too Many Requests"); bu durumda kod gömülür ki
+                // ajanlar grep'lenebilir kalsın.
+                let canonical = StatusCode::from_u16(status)
+                    .ok()
+                    .and_then(|s| s.canonical_reason());
+                let message = match detail {
+                    Some(d) if Some(d.as_str()) != canonical => d,
+                    _ => format!("[{} {}]", status, code_name(code)),
+                };
+
+                if code == actos_sdk::actos_types::ErrorCode::RateLimited {
+                    Self::RateLimited {
+                        message,
+                        retry_after: retry_after.map(|d| d.as_secs()),
+                        request_id,
+                    }
+                } else {
+                    Self::Api {
+                        code,
+                        message,
+                        status,
+                        request_id,
+                        retry_after: retry_after.map(|d| d.as_secs()),
+                    }
+                }
+            }
+            actos_sdk::Error::Transport(e) => Self::Network(e.to_string()),
+            actos_sdk::Error::Decode(m) => Self::General(format!("could not decode response: {m}")),
+            actos_sdk::Error::Config(m) => Self::Validation(m),
+            actos_sdk::Error::Io(e) => Self::Io(e.to_string()),
+            _ => Self::General("unhandled SDK error".to_string()),
+        }
     }
 }

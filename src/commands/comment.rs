@@ -28,24 +28,18 @@ pub async fn handle_comment(
             let resolved_body = resolve_body_content(&body)?;
             let parent_id = parent.as_deref().map(parse_content_id);
 
-            let mut req_body = json!({
-                "body": resolved_body,
-            });
-
+            let mut builder = client.comments().create(p_id, resolved_body);
             if let Some(pid) = parent_id {
-                req_body["parent_id"] = json!(pid);
+                builder = builder.parent_id(pid);
             }
 
-            let path = format!("/posts/{p_id}/comments");
-            let (val, rate_limit) = client.post_json(&path, &req_body, None).await?;
-
-            let comment: actos_types::content::ContentSummary = serde_json::from_value(val.clone())
-                .map_err(|e| {
-                    CliError::General(format!("Invalid comment creation response: {e}"))
-                })?;
+            let comment = builder.send().await.map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             if output.json {
-                output.print_json(&val, Some(rate_limit));
+                let val = serde_json::to_value(&comment)
+                    .map_err(|e| CliError::General(format!("Failed to serialize comment: {e}")))?;
+                output.print_json(&val, Some(rl));
             } else {
                 println!("Comment created: {}", comment.id);
                 println!("{}/comments/{}", client.base_url(), comment.id);
@@ -54,18 +48,19 @@ pub async fn handle_comment(
 
         CommentAction::View { id } => {
             let comment_id = parse_content_id(&id);
-            let path = format!("/comments/{comment_id}");
 
-            let (val, rate_limit) = client.get_json(&path, None).await?;
+            let detail = client
+                .comments()
+                .get(&comment_id)
+                .await
+                .map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             if output.json {
-                output.print_json(&val, Some(rate_limit));
+                let val = serde_json::to_value(&detail)
+                    .map_err(|e| CliError::General(format!("Failed to serialize comment: {e}")))?;
+                output.print_json(&val, Some(rl));
             } else {
-                let detail: actos_types::content::CommentDetailResponse =
-                    serde_json::from_value(val).map_err(|e| {
-                        CliError::General(format!("Invalid comment detail response: {e}"))
-                    })?;
-
                 let comment = &detail.comment;
                 let author = if comment.author_deleted {
                     "[silindi]".to_string()
@@ -128,13 +123,18 @@ pub async fn handle_comment(
 
             let query_refs: Vec<(&str, &str)> =
                 query_params.iter().map(|(k, v)| (*k, v.as_str())).collect();
+            let query_opt = if query_refs.is_empty() {
+                None
+            } else {
+                Some(query_refs.as_slice())
+            };
 
-            let (val, rate_limit) = client.get_json(&path, Some(&query_refs)).await?;
+            let (val, rate_limit) = client.get_json(&path, query_opt).await?;
 
             if output.json {
                 output.print_json(&val, Some(rate_limit));
             } else {
-                let thread: actos_types::content::CommentThreadResponse =
+                let thread: actos_sdk::actos_types::content::CommentThreadResponse =
                     serde_json::from_value(val).map_err(|e| {
                         CliError::General(format!("Invalid comment thread response: {e}"))
                     })?;
@@ -160,23 +160,18 @@ pub async fn handle_comment(
 
             let comment_id = parse_content_id(&id);
             let resolved_body = resolve_body_content(&body)?;
-            let patch_json = json!({ "body": resolved_body });
 
-            let path = format!("/comments/{comment_id}");
-            let bytes_body = serde_json::to_vec(&patch_json).map_err(|e| {
-                CliError::Validation(format!("Failed to serialize comment edit JSON: {e}"))
-            })?;
-
-            let (_status, _headers, bytes, rate_limit) = client
-                .execute_request(reqwest::Method::PATCH, &path, None, Some(bytes_body), None)
-                .await?;
-
-            let val: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| {
-                CliError::General(format!("Failed to parse comment edit response: {e}"))
-            })?;
+            let comment = client
+                .comments()
+                .update(&comment_id, resolved_body)
+                .await
+                .map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             if output.json {
-                output.print_json(&val, Some(rate_limit));
+                let val = serde_json::to_value(&comment)
+                    .map_err(|e| CliError::General(format!("Failed to serialize comment: {e}")))?;
+                output.print_json(&val, Some(rl));
             } else {
                 println!("Comment '{comment_id}' updated successfully.");
             }
@@ -197,21 +192,16 @@ pub async fn handle_comment(
             }
 
             let comment_id = parse_content_id(&id);
-            let path = format!("/comments/{comment_id}");
-
-            let (status, _headers, _bytes, rate_limit) = client
-                .execute_request(reqwest::Method::DELETE, &path, None, None, None)
-                .await?;
-
-            if !status.is_success() {
-                return Err(CliError::General(format!(
-                    "Failed to delete comment '{comment_id}'"
-                )));
-            }
+            client
+                .comments()
+                .delete(&comment_id)
+                .await
+                .map_err(CliError::from)?;
+            let rl = client.rate_limit_info().unwrap_or_default();
 
             if output.json {
                 let res = json!({ "status": "deleted", "id": comment_id });
-                output.print_json(&res, Some(rate_limit));
+                output.print_json(&res, Some(rl));
             } else {
                 println!("Comment '{comment_id}' deleted.");
             }
@@ -222,7 +212,7 @@ pub async fn handle_comment(
 }
 
 fn print_comment_tree(
-    node: &actos_types::content::CommentNodeResponse,
+    node: &actos_sdk::actos_types::content::CommentNodeResponse,
     prefix: &str,
     is_last: bool,
 ) {

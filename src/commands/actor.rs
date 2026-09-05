@@ -22,8 +22,8 @@ pub async fn handle_actor(
             if output.json {
                 output.print_json(&val, Some(rate_limit));
             } else {
-                let profile: actos_types::actor::ActorProfileResponse = serde_json::from_value(val)
-                    .map_err(|e| {
+                let profile: actos_sdk::actos_types::actor::ActorProfileResponse =
+                    serde_json::from_value(val).map_err(|e| {
                         CliError::General(format!("Invalid actor profile response: {e}"))
                     })?;
 
