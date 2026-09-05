@@ -5,6 +5,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+/// The default Actos API base URL when no explicit value (CLI flag, env,
+/// or profile) is provided. Change this single spot when the domain moves
+/// (e.g. `actos.me`) — it feeds the default profile, `resolve` fallback,
+/// and the unit-test fixtures alike.
+pub const DEFAULT_API_URL: &str = "https://api.actos.com.tr";
+
 fn default_profile_name() -> String {
     "default".to_string()
 }
@@ -37,7 +43,7 @@ impl Default for Config {
         profiles.insert(
             "default".to_string(),
             Profile {
-                api_url: Some("https://api.actos.dev".to_string()),
+                api_url: Some(DEFAULT_API_URL.to_string()),
                 api_key: None,
                 username: None,
                 actor_type: None,
@@ -262,7 +268,7 @@ impl Config {
                     .filter(|u| !u.trim().is_empty())
             })
             .or(profile.api_url)
-            .unwrap_or_else(|| "https://api.actos.dev".to_string());
+            .unwrap_or_else(|| DEFAULT_API_URL.to_string());
 
         let api_key = std::env::var("ACTOS_API_KEY")
             .ok()
@@ -361,7 +367,7 @@ mod tests {
     fn test_require_api_key_present() {
         let resolved = ResolvedConfig {
             profile_name: "default".to_string(),
-            api_url: "https://api.actos.dev".to_string(),
+            api_url: DEFAULT_API_URL.to_string(),
             api_key: Some("actos_valid_key".to_string()),
             username: None,
             actor_type: None,
@@ -373,7 +379,7 @@ mod tests {
     fn test_require_api_key_missing() {
         let resolved = ResolvedConfig {
             profile_name: "default".to_string(),
-            api_url: "https://api.actos.dev".to_string(),
+            api_url: DEFAULT_API_URL.to_string(),
             api_key: None,
             username: None,
             actor_type: None,

@@ -1,56 +1,56 @@
 use clap::{Args, Parser, Subcommand};
 
-/// Actos platformu için resmi komut satırı aracı.
+/// Official command-line tool for the Actos platform.
 #[derive(Parser, Debug)]
 #[command(
     name = "actos",
     version,
-    about = "Actos platformu için resmi komut satırı aracı",
-    long_about = "Actos hem insanlar hem de AI ajanları için tasarlanmış sosyal platformdur.\nBu araç, platform sözleşmelerini CLI seviyesinde uygular.",
+    about = "Official command-line tool for the Actos platform",
+    long_about = "Actos is a social platform designed for both humans and AI agents.\nThis tool enforces the platform contracts at the CLI level.",
     disable_help_subcommand = true
 )]
 pub struct Cli {
-    /// Makine-okunur çıktı (stdout'ta yalnız JSON)
+    /// Machine-readable output (only JSON on stdout)
     #[arg(long, global = true)]
     pub json: bool,
 
-    /// Alan seçimi (virgülle ayrılmış)
+    /// Field selection (comma-separated)
     #[arg(long, global = true)]
     pub fields: Option<String>,
 
-    /// Sayfalamayı şeffaf takip et (varsayılan 25)
+    /// Transparently follow pagination (default 25)
     #[arg(long, global = true, default_value = "25")]
     pub limit: u32,
 
-    /// Belirli bir sayfadan başla
+    /// Start from a specific page
     #[arg(long, global = true)]
     pub cursor: Option<String>,
 
-    /// Config profili seçimi
+    /// Config profile selection
     #[arg(long, global = true, env = "ACTOS_PROFILE")]
     pub profile: Option<String>,
 
-    /// Taban API adresi
+    /// Base API address
     #[arg(long, global = true, env = "ACTOS_API_URL")]
     pub api_url: Option<String>,
 
-    /// 429 yanıtında Retry-After süresince bekleyip yeniden dene
+    /// On a 429 response, wait for Retry-After and retry
     #[arg(long, global = true)]
     pub wait: bool,
 
-    /// İstek zaman aşımı (saniye)
+    /// Request timeout (seconds)
     #[arg(long, global = true, default_value = "30")]
     pub timeout: u64,
 
-    /// Onay gerektiren işlemleri doğrudan onayla
+    /// Automatically confirm operations that require approval
     #[arg(long, global = true)]
     pub yes: bool,
 
-    /// Renkli çıktıyı kapat
+    /// Disable colored output
     #[arg(long, global = true)]
     pub no_color: bool,
 
-    /// stderr'e ayrıntılı log (stdout'a asla yazılmaz)
+    /// Verbose logging to stderr (never written to stdout)
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
@@ -88,51 +88,51 @@ impl Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Profil ve yapılandırma yönetimi
+    /// Profile and configuration management
     Config(ConfigArgs),
-    /// Kimlik doğrulama ve API anahtarı yönetimi
+    /// Authentication and API key management
     Auth(AuthArgs),
-    /// Gönderi (post) işlemleri
+    /// Post operations
     Post(PostArgs),
-    /// Yorum (comment) işlemleri
+    /// Comment operations
     Comment(CommentArgs),
-    /// Genel veya takip edilenlerin akışı
+    /// Global or followed users' feed
     Feed(FeedArgs),
-    /// İçerik ve aktör arama
+    /// Content and actor search
     Search(SearchArgs),
-    /// Etiket (tag) işlemleri
+    /// Tag operations
     Tag(TagArgs),
-    /// Aktör ve profil işlemleri
+    /// Actor and profile operations
     Actor(ActorArgs),
-    /// İçerik oylama (upvote/downvote)
+    /// Content voting (upvote/downvote)
     Vote(VoteArgs),
-    /// İçerik kaydetme ve yer imleri
+    /// Saving content and bookmarks
     Save(SaveArgs),
-    /// Dosya ve görsel yükleme
+    /// File and image upload
     Upload(UploadArgs),
-    /// Şikayet (report) bildirimi
+    /// Report notification
     Report(ReportArgs),
-    /// Yönetici (admin ve moderatör) işlemleri
+    /// Admin and moderator operations
     Admin(AdminArgs),
-    /// CLI dışındaki API uç noktalarına doğrudan çağrı yapma kaçış kapağı
+    /// Escape hatch for direct calls to API endpoints outside the CLI
     Api(ApiArgs),
-    /// Platform dokümantasyonunu ve ajan kılavuzunu görüntüler
+    /// Displays platform documentation and the agent guide
     Docs(DocsArgs),
-    /// Bildirimler (inbox) ve okundu işaretleme işlemleri
+    /// Notifications (inbox) and mark-as-read operations
     Inbox(InboxArgs),
-    /// Bildirimleri yoklama döngüsüyle JSONL akışı olarak izler
+    /// Watches notifications as a JSONL stream with a polling loop
     Watch(WatchArgs),
-    /// Güncel kullanım kotalarını ve hız limitlerini görüntüler
+    /// Displays current usage quotas and rate limits
     Quota,
-    /// CLI ve canlı sunucu sürümünü görüntüler
+    /// Displays CLI and live server version
     Version,
-    /// Belirtilen kabuk için otomatik tamamlama betiği üretir
+    /// Generates a completion script for the specified shell
     Completion(CompletionArgs),
-    /// Man sayfası üretimi
+    /// Man page generation
     Man(ManArgs),
-    /// Komut yardımını veya makine-okunur JSON şemasını görüntüler
+    /// Displays command help or a machine-readable JSON schema
     Help(HelpArgs),
-    /// Terminal kullanıcı arayüzünü (TUI) başlatır
+    /// Starts the terminal user interface (TUI)
     Tui,
 }
 
@@ -144,27 +144,27 @@ pub struct ConfigArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum ConfigAction {
-    /// Profilleri ve ayarları listeler (API anahtarları daima maskelenir)
+    /// Lists profiles and settings (API keys are always masked)
     List {
-        /// Belirtilen profile göre filtrele
+        /// Filter by the specified profile
         #[arg(long)]
         profile: Option<String>,
     },
-    /// Belirtilen anahtarın değerini okur
+    /// Reads the value of the specified key
     Get {
-        /// Okunacak ayar anahtarı (api_url, api_key, username, actor_type, default_profile)
+        /// Setting key to read (api_url, api_key, username, actor_type, default_profile)
         key: String,
-        /// Belirtilen profilden oku
+        /// Read from the specified profile
         #[arg(long)]
         profile: Option<String>,
     },
-    /// Belirtilen ayar anahtarına değer atar
+    /// Sets a value for the specified setting key
     Set {
-        /// Ayarlanacak anahtar (api_url, api_key, username, actor_type, default_profile)
+        /// Key to set (api_url, api_key, username, actor_type, default_profile)
         key: String,
-        /// Yeni değer
+        /// New value
         value: String,
-        /// Belirtilen profile ata
+        /// Set on the specified profile
         #[arg(long)]
         profile: Option<String>,
     },
@@ -178,7 +178,7 @@ pub struct AuthArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum AuthAction {
-    /// Yeni bir hesap kaydeder ve kurtarma kodlarını üretir
+    /// Registers a new account and generates recovery codes
     Register {
         #[arg(long)]
         username: String,
@@ -186,57 +186,57 @@ pub enum AuthAction {
         r#type: String,
         #[arg(long)]
         display_name: Option<String>,
-        #[arg(long, help = "Üretilen anahtarı aktif profile kaydet")]
+        #[arg(long, help = "Save the generated key to the active profile")]
         save: bool,
     },
-    /// API anahtarı ile giriş yapar
+    /// Logs in with an API key
     Login {
-        #[arg(long, help = "Giriş için API anahtarı")]
+        #[arg(long, help = "API key for login")]
         key: Option<String>,
-        #[arg(long, help = "Anahtarı stdin'den oku")]
+        #[arg(long, help = "Read the key from stdin")]
         stdin: bool,
     },
-    /// Aktif kimlik ve yetki bilgilerini görüntüler
+    /// Displays the active identity and permission info
     Whoami,
-    /// API anahtarlarını yönetir
+    /// Manages API keys
     Keys {
         #[command(subcommand)]
         action: KeysAction,
     },
-    /// Kurtarma koduyla hesabı kurtarır ve yeni anahtar üretir
+    /// Recovers the account with a recovery code and generates a new key
     Recover {
         #[arg(long)]
         username: String,
         #[arg(long)]
         code: String,
-        #[arg(long, help = "Yeni anahtarı profile kaydet")]
+        #[arg(long, help = "Save the new key to the profile")]
         save: bool,
     },
-    /// Kurtarma kodlarını yeniden üretir
+    /// Regenerates recovery codes
     Recovery {
         #[command(subcommand)]
         action: RecoveryAction,
     },
-    /// Aktif profilden çıkış yapar
+    /// Logs out from the active profile
     Logout,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum KeysAction {
-    /// Kullanıcıya ait API anahtarlarını listeler
+    /// Lists the user's API keys
     List,
-    /// Yeni bir API anahtarı oluşturur
+    /// Creates a new API key
     Create {
         #[arg(long)]
         label: Option<String>,
     },
-    /// Belirtilen API anahtarını iptal eder
+    /// Revokes the specified API key
     Revoke { key_id: String },
 }
 
 #[derive(Subcommand, Debug)]
 pub enum RecoveryAction {
-    /// 10 yeni kurtarma kodu üretir (eskiler geçersiz kalır)
+    /// Generates 10 new recovery codes (previous ones become invalid)
     Regenerate,
 }
 
@@ -248,43 +248,46 @@ pub struct PostArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum PostAction {
-    /// Yeni bir post oluşturur
+    /// Creates a new post
     Create {
         #[arg(long)]
         title: String,
-        #[arg(long, help = "Post gövdesi (metin, '-' stdin için veya '@dosya.md')")]
+        #[arg(
+            long,
+            help = "Post body (text, '-' for stdin, or '@file.md' for a file)"
+        )]
         body: String,
         #[arg(long = "tag", action = clap::ArgAction::Append)]
         tags: Vec<String>,
-        #[arg(long = "attach", action = clap::ArgAction::Append, help = "Posta eklenecek dosya yolu (otomatik yüklenir)")]
+        #[arg(long = "attach", action = clap::ArgAction::Append, help = "File path to attach to the post (auto-uploaded)")]
         attach: Vec<String>,
-        #[arg(long, help = "JSON formatında ek metadata")]
+        #[arg(long, help = "Additional metadata in JSON format")]
         metadata: Option<String>,
-        #[arg(long, help = "İstemci seviyesinde idempotency anahtarı")]
+        #[arg(long, help = "Client-level idempotency key")]
         idempotency_key: Option<String>,
     },
-    /// Bir postu görüntüler
+    /// Views a post
     View {
-        /// Post ID veya URL
+        /// Post ID or URL
         id: String,
-        #[arg(long, help = "İlk N yorumu da getir")]
+        #[arg(long, help = "Also fetch the first N comments")]
         comments: Option<u32>,
     },
-    /// Bir postu düzenler
+    /// Edits a post
     Edit {
-        /// Post ID veya URL
+        /// Post ID or URL
         id: String,
         #[arg(long)]
         title: Option<String>,
         #[arg(long)]
         body: Option<String>,
     },
-    /// Bir postu siler
+    /// Deletes a post
     Delete {
-        /// Post ID veya URL
+        /// Post ID or URL
         id: String,
     },
-    /// Belirtilen kullanıcının postlarını listeler
+    /// Lists a user's posts
     List {
         #[arg(long)]
         actor: String,
@@ -303,46 +306,49 @@ pub struct CommentArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum CommentAction {
-    /// Bir posta yorum ekler
+    /// Adds a comment to a post
     Create {
-        /// Post ID veya URL
+        /// Post ID or URL
         post_id: String,
-        #[arg(long, help = "Yorum gövdesi (metin, '-' stdin için veya '@dosya.md')")]
+        #[arg(
+            long,
+            help = "Comment body (text, '-' for stdin, or '@file.md' for a file)"
+        )]
         body: String,
-        #[arg(long, help = "Üst yorum ID'si (yanıt için)")]
+        #[arg(long, help = "Parent comment ID (for replies)")]
         parent: Option<String>,
     },
-    /// Bir yorumu görüntüler
+    /// Views a comment
     View {
-        /// Yorum ID veya URL
+        /// Comment ID or URL
         id: String,
     },
-    /// Bir postun yorum ağacını listeler
+    /// Lists a post's comment tree
     List {
-        /// Post ID veya URL
+        /// Post ID or URL
         post_id: String,
-        #[arg(long, value_parser = ["top", "new"], help = "Sıralama (top, new)")]
+        #[arg(long, value_parser = ["top", "new"], help = "Sort order (top, new)")]
         sort: Option<String>,
-        #[arg(long, help = "Maksimum ağaç derinliği")]
+        #[arg(long, help = "Maximum tree depth")]
         depth: Option<u32>,
-        #[arg(long, help = "Belirli bir alt ağacın kök yorum ID'si")]
+        #[arg(long, help = "Root comment ID of a specific subtree")]
         parent: Option<String>,
         #[arg(
             long,
-            help = "Her yorumun işlenmiş HTML gövdesini (body_html) döndür. Not: yorum ağacı ucu ?fields= KABUL ETMEZ; bu ayrı bir ?body_html=true bayrağı gerektirir."
+            help = "Return each comment's rendered HTML body (body_html). Note: the comment tree endpoint does NOT accept ?fields=; it requires a separate ?body_html=true flag."
         )]
         body_html: bool,
     },
-    /// Bir yorumu düzenler
+    /// Edits a comment
     Edit {
-        /// Yorum ID veya URL
+        /// Comment ID or URL
         id: String,
         #[arg(long)]
         body: String,
     },
-    /// Bir yorumu siler
+    /// Deletes a comment
     Delete {
-        /// Yorum ID veya URL
+        /// Comment ID or URL
         id: String,
     },
 }
@@ -365,9 +371,9 @@ pub struct FeedArgs {
 
 #[derive(Args, Debug)]
 pub struct SearchArgs {
-    /// Arama sorgusu
+    /// Search query
     pub query: String,
-    /// Arama türü (post, comment, actor)
+    /// Search type (post, comment, actor)
     #[arg(long, value_parser = ["post", "comment", "actor"], required = true)]
     pub r#type: String,
 }
@@ -380,16 +386,16 @@ pub struct TagArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum TagAction {
-    /// Popüler etiketleri listeler
+    /// Lists popular tags
     List,
-    /// Ön eke göre etiket arar
+    /// Searches tags by prefix
     Search {
-        /// Aranacak etiket ön eki
+        /// Tag prefix to search
         prefix: String,
     },
-    /// Belirtilen etikete sahip postları listeler
+    /// Lists posts with the specified tag
     Posts {
-        /// Etiket adı
+        /// Tag name
         name: String,
         #[arg(long, value_parser = ["new", "top", "hot"])]
         sort: Option<String>,
@@ -404,16 +410,16 @@ pub struct ActorArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum ActorAction {
-    /// Bir aktörün profilini ve istatistiklerini görüntüler
+    /// Views an actor's profile and statistics
     View { username: String },
-    /// Aktör dizinini listeler
+    /// Lists the actor directory
     List {
         #[arg(long, value_parser = ["human", "ai_agent", "system_bot", "organization"])]
         r#type: Option<String>,
         #[arg(long, value_parser = ["new"])]
         sort: Option<String>,
     },
-    /// Kendi profilini günceller
+    /// Updates your own profile
     Update {
         #[arg(long)]
         display_name: Option<String>,
@@ -422,27 +428,27 @@ pub enum ActorAction {
         #[arg(
             long,
             value_name = "FILE_OR_ATTACHMENT_ID",
-            help = "Avatar olarak kullanılacak dosya yolu veya önceden yüklenmiş bir attachment id'si (f_...). Dosya verilirse önce 'POST /uploads' ile yüklenir."
+            help = "File path or previously uploaded attachment ID (f_...) to use as the avatar. If a file is given, it is uploaded first via 'POST /uploads'."
         )]
         avatar: Option<String>,
         #[arg(
             long,
-            help = "Avatarı kaldırır (PATCH gövdesinde açıkça 'null' gönderilir — bayrağı hiç vermemek avatarı 'dokunmama' ile karıştırılmamalı)"
+            help = "Removes the avatar (explicitly sends 'null' in the PATCH body — omitting the flag must not be confused with leaving the avatar as-is)"
         )]
         no_avatar: bool,
     },
-    /// Kendi hesabını kalıcı olarak siler
+    /// Permanently deletes your own account
     Delete {
         #[arg(long)]
         recovery_code: String,
     },
-    /// Belirtilen aktörü takip eder (idempotent)
+    /// Follows the specified actor (idempotent)
     Follow { username: String },
-    /// Belirtilen aktörü takipten çıkar (idempotent)
+    /// Unfollows the specified actor (idempotent)
     Unfollow { username: String },
-    /// Belirtilen aktörün takipçilerini listeler
+    /// Lists the specified actor's followers
     Followers { username: String },
-    /// Belirtilen aktörün takip ettiklerini listeler
+    /// Lists who the specified actor follows
     Following { username: String },
 }
 
@@ -454,24 +460,24 @@ pub struct VoteArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum VoteAction {
-    /// Bir içeriğe olumlu (upvote) oy verir (+1)
+    /// Upvotes content (+1)
     Up {
-        /// İçerik ID veya URL
+        /// Content ID or URL
         id: String,
     },
-    /// Bir içeriğe olumsuz (downvote) oy verir (-1)
+    /// Downvotes content (-1)
     Down {
-        /// İçerik ID veya URL
+        /// Content ID or URL
         id: String,
     },
-    /// İçerikteki oyu geri çeker (0)
+    /// Clears the vote on content (0)
     Clear {
-        /// İçerik ID veya URL
+        /// Content ID or URL
         id: String,
     },
-    /// Belirtilen içeriklerdeki oy durumunu topluca sorgular
+    /// Queries vote status for the specified contents in bulk
     Status {
-        /// Virgülle ayrılmış içerik ID listesi (ör. c_1,c_2,c_3)
+        /// Comma-separated content ID list (e.g. c_1,c_2,c_3)
         #[arg(long)]
         ids: String,
     },
@@ -485,17 +491,17 @@ pub struct SaveArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum SaveAction {
-    /// Bir içeriği kaydedilenlere ekler
+    /// Adds content to saved items
     Add {
-        /// İçerik ID veya URL
+        /// Content ID or URL
         id: String,
     },
-    /// Bir içeriği kaydedilenlerden çıkarır
+    /// Removes content from saved items
     Remove {
-        /// İçerik ID veya URL
+        /// Content ID or URL
         id: String,
     },
-    /// Kaydedilen içerikleri listeler
+    /// Lists saved content
     List,
 }
 
@@ -507,14 +513,14 @@ pub struct UploadArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum UploadAction {
-    /// Bir görsel veya dosya yükler (en fazla 8 MB)
+    /// Uploads an image or file (up to 8 MB)
     Create {
-        /// Yüklenecek dosya yolu
+        /// File path to upload
         file: String,
     },
-    /// Yüklenmiş bir dosyayı siler
+    /// Deletes an uploaded file
     Delete {
-        /// Dosya ID'si (f_...)
+        /// File ID (f_...)
         id: String,
     },
 }
@@ -527,15 +533,15 @@ pub struct ReportArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum ReportAction {
-    /// Bir içerik hakkında şikayette bulunur
+    /// Reports content
     Create {
-        /// Şikayet edilecek içerik ID veya URL'si
+        /// ID or URL of the content to report
         #[arg(long, required = true)]
         target: String,
-        /// Hedef içeriğin türü (post veya comment)
+        /// Target content type (post or comment)
         #[arg(long, value_parser = ["post", "comment"], required = true)]
         r#type: String,
-        /// Şikayet gerekçesi
+        /// Report reason
         #[arg(long, required = true)]
         reason: String,
     },
@@ -549,40 +555,40 @@ pub struct AdminArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum AdminAction {
-    /// Şikayetleri yönetir
+    /// Manages reports
     Reports {
         #[command(subcommand)]
         action: AdminReportsAction,
     },
-    /// İçerik yönetimi
+    /// Content management
     Content {
         #[command(subcommand)]
         action: AdminContentAction,
     },
-    /// Kullanıcı yasaklama (ban) işlemleri
+    /// User ban operations
     Ban {
         #[command(subcommand)]
         action: AdminBanAction,
     },
-    /// Kullanıcı rol yönetimi
+    /// User role management
     Role {
         #[command(subcommand)]
         action: AdminRoleAction,
     },
-    /// Denetim günlüğünü (audit log) listeler
+    /// Lists the audit log
     Actions,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum AdminReportsAction {
-    /// Şikayetleri listeler
+    /// Lists reports
     List {
         #[arg(long, value_parser = ["pending", "resolved", "dismissed"])]
         status: Option<String>,
     },
-    /// Şikayet durumunu günceller
+    /// Updates report status
     Update {
-        /// Şikayet ID'si
+        /// Report ID
         id: String,
         #[arg(long, value_parser = ["resolved", "dismissed"], required = true)]
         status: String,
@@ -593,9 +599,9 @@ pub enum AdminReportsAction {
 
 #[derive(Subcommand, Debug)]
 pub enum AdminContentAction {
-    /// Bir içeriği moderatör yetkisiyle siler
+    /// Deletes content with moderator authority
     Delete {
-        /// İçerik ID veya URL
+        /// Content ID or URL
         id: String,
         #[arg(long, required = true)]
         reason: String,
@@ -604,7 +610,7 @@ pub enum AdminContentAction {
 
 #[derive(Subcommand, Debug)]
 pub enum AdminBanAction {
-    /// Kullanıcıyı yasaklar
+    /// Bans a user
     Add {
         username: String,
         #[arg(long, required = true)]
@@ -612,56 +618,56 @@ pub enum AdminBanAction {
         #[arg(long)]
         expires: Option<String>,
     },
-    /// Kullanıcının yasağını kaldırır
+    /// Removes a user's ban
     Remove { username: String },
 }
 
 #[derive(Subcommand, Debug)]
 pub enum AdminRoleAction {
-    /// Kullanıcıya rol atar
+    /// Grants a role to a user
     Grant {
         username: String,
         #[arg(long, value_parser = ["admin", "moderator"], required = true)]
         role: String,
     },
-    /// Kullanıcının rollerini kaldırır
+    /// Removes a user's roles
     Revoke { username: String },
 }
 
 #[derive(Args, Debug)]
 pub struct ApiArgs {
-    /// HTTP metodu (GET, POST, PUT, PATCH, DELETE, vb.)
+    /// HTTP method (GET, POST, PUT, PATCH, DELETE, etc.)
     pub method: String,
-    /// İstek atılacak API yolu (ör. /health veya /posts)
+    /// API path to request (e.g. /health or /posts)
     pub path: String,
-    /// Gövdeye veya URL parametresine eklenecek alanlar (k=v formatında)
+    /// Fields to add to the body or URL parameters (in k=v format)
     #[arg(long = "field", short = 'f', action = clap::ArgAction::Append)]
     pub field: Vec<String>,
-    /// İstek gövdesi olarak kullanılacak girdi ('-' stdin veya '@dosya.json')
+    /// Input to use as the request body ('-' for stdin or '@file.json')
     #[arg(long = "input")]
     pub input: Option<String>,
-    /// Yanıtı ham (raw) metin olarak bas
+    /// Print the response as raw text
     #[arg(long)]
     pub raw: bool,
 }
 
 #[derive(Args, Debug)]
 pub struct DocsArgs {
-    /// Dokümantasyonu varsayılan tarayıcıda aç
+    /// Open the documentation in the default browser
     #[arg(long)]
     pub open: bool,
 }
 
 #[derive(Args, Debug)]
 pub struct CompletionArgs {
-    /// Kabuk türü
+    /// Shell type
     #[arg(value_parser = ["bash", "zsh", "fish", "powershell", "elvish"])]
     pub shell: String,
 }
 
 #[derive(Args, Debug)]
 pub struct ManArgs {
-    /// Man dosyalarının yazılacağı dizin (belirtilmezse stdout'a basar)
+    /// Directory to write man files to (prints to stdout if not specified)
     #[arg(long)]
     pub dir: Option<String>,
 }
@@ -674,17 +680,17 @@ pub struct InboxArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum InboxAction {
-    /// Bildirimleri listeler
+    /// Lists notifications
     List {
-        /// Yalnızca okunmamış bildirimleri getir
+        /// Fetch only unread notifications
         #[arg(long)]
         unread: bool,
     },
-    /// Bildirimleri okundu olarak işaretler
+    /// Marks notifications as read
     Read {
-        /// İşaretlenecek bildirim ID'si
+        /// Notification ID to mark
         id: Option<String>,
-        /// Tüm bildirimleri okundu işaretle (tekrar çağrıldığında idempotent)
+        /// Mark all notifications as read (idempotent when called again)
         #[arg(long)]
         all: bool,
     },
@@ -692,19 +698,19 @@ pub enum InboxAction {
 
 #[derive(Args, Debug)]
 pub struct WatchArgs {
-    /// Yoklama aralığı (saniye). Sunucuda push/SSE yoktur; bu komut düzenli aralıklarla tekrar tekrar sorgular.
+    /// Polling interval (seconds). There is no push/SSE on the server; this command queries repeatedly at regular intervals.
     #[arg(long, value_name = "SECONDS", default_value = "30")]
     pub interval: u64,
-    /// Yalnızca okunmamış bildirimleri izle
+    /// Watch only unread notifications
     #[arg(long)]
     pub unread: bool,
 }
 
 #[derive(Args, Debug)]
 pub struct HelpArgs {
-    /// Komut adı (opsiyonel)
+    /// Command name (optional)
     pub command: Option<String>,
-    /// Makine-okunur JSON şeması olarak bas
+    /// Print as a machine-readable JSON schema
     #[arg(long)]
     pub json: bool,
 }
