@@ -371,11 +371,14 @@ pub struct FeedArgs {
 
 #[derive(Args, Debug)]
 pub struct SearchArgs {
-    /// Search query
-    pub query: String,
-    /// Search type (post, comment, actor)
-    #[arg(long, value_parser = ["post", "comment", "actor"], required = true)]
-    pub r#type: String,
+    /// Search query words. The type may be given as the first word instead
+    /// of `--type` (e.g. `actos search post captcha`).
+    #[arg(value_name = "QUERY", num_args = 1..)]
+    pub query: Vec<String>,
+    /// Search type (post, comment, actor). If omitted, the first query
+    /// word is used when it is a valid type.
+    #[arg(long, value_parser = ["post", "comment", "actor"])]
+    pub r#type: Option<String>,
 }
 
 #[derive(Args, Debug)]
