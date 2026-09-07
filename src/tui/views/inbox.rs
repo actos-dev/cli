@@ -10,9 +10,7 @@ use crate::tui::mouse::{self, MouseAction};
 
 pub fn render_inbox(frame: &mut Frame, app: &mut App, area: Rect) {
     if app.inbox.items.is_empty() {
-        let empty = Block::default()
-            .title(" Inbox ")
-            .borders(Borders::ALL);
+        let empty = Block::default().title(" Inbox ").borders(Borders::ALL);
         frame.render_widget(empty, area);
         return;
     }

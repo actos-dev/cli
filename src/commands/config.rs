@@ -47,7 +47,10 @@ pub fn handle_user(name: Option<&str>, is_json: bool) -> Result<(), CliError> {
                     };
                     table.add_row(vec![
                         display,
-                        prof.username.as_deref().unwrap_or("(no identity)").to_string(),
+                        prof.username
+                            .as_deref()
+                            .unwrap_or("(no identity)")
+                            .to_string(),
                         prof.actor_type.as_deref().unwrap_or("-").to_string(),
                     ]);
                 }

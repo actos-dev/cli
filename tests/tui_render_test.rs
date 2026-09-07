@@ -106,11 +106,13 @@ fn test_render_tags_actors_inbox_saves() {
     let mut app = blank_app();
 
     app.current_tab = CurrentTab::Tags;
-    app.tags.items = vec![serde_json::from_value(serde_json::json!({
-        "name": "rust", "post_count": 12,
-        "created_at": "2026-01-01T00:00:00Z"
-    }))
-    .unwrap()];
+    app.tags.items = vec![
+        serde_json::from_value(serde_json::json!({
+            "name": "rust", "post_count": 12,
+            "created_at": "2026-01-01T00:00:00Z"
+        }))
+        .unwrap(),
+    ];
     assert!(screen_text(&mut app).contains("#rust"));
 
     app.current_tab = CurrentTab::Actors;
@@ -118,12 +120,14 @@ fn test_render_tags_actors_inbox_saves() {
     assert!(screen_text(&mut app).contains("@alice"));
 
     app.current_tab = CurrentTab::Inbox;
-    app.inbox.items = vec![serde_json::from_value(serde_json::json!({
-        "id": "n_1", "kind": "comment_on_post", "actor": actor_json(),
-        "target_type": "content", "target_id": "c_9", "payload": {},
-        "created_at": "2026-01-01T00:00:00Z", "read_at": null
-    }))
-    .unwrap()];
+    app.inbox.items = vec![
+        serde_json::from_value(serde_json::json!({
+            "id": "n_1", "kind": "comment_on_post", "actor": actor_json(),
+            "target_type": "content", "target_id": "c_9", "payload": {},
+            "created_at": "2026-01-01T00:00:00Z", "read_at": null
+        }))
+        .unwrap(),
+    ];
     let inbox_text = screen_text(&mut app);
     assert!(inbox_text.contains("comment_on_post"));
 

@@ -338,10 +338,7 @@ mod tests {
             split_tags(&v(&["meta", "agents dogfood"])),
             v(&["meta", "agents", "dogfood"])
         );
-        assert_eq!(
-            split_tags(&v(&["  meta ,,  ", ""])),
-            v(&["meta"])
-        );
+        assert_eq!(split_tags(&v(&["  meta ,,  ", ""])), v(&["meta"]));
         assert!(split_tags(&[]).is_empty());
     }
 

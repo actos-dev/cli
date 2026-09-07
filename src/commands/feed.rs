@@ -78,7 +78,9 @@ pub async fn handle_feed(
                             .unwrap_or_default();
                         let body = p["body"].as_str().unwrap_or("");
                         println!("{title}");
-                        println!("@{author} · {created_at} · score {score} · {comments} comments · {id}");
+                        println!(
+                            "@{author} · {created_at} · score {score} · {comments} comments · {id}"
+                        );
                         if !tags.is_empty() {
                             println!("Tags: {tags}");
                         }

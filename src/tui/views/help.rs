@@ -6,10 +6,7 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 fn kv(key: &str, desc: &str) -> Line<'static> {
     Line::from(vec![
-        Span::styled(
-            format!("{key:<22}"),
-            Style::default().fg(Color::Cyan),
-        ),
+        Span::styled(format!("{key:<22}"), Style::default().fg(Color::Cyan)),
         Span::raw(desc.to_string()),
     ])
 }
@@ -28,7 +25,10 @@ pub fn render_help(frame: &mut Frame, area: Rect) {
             Style::default().fg(Color::Green),
         )),
         kv("Tab / Shift+Tab", "Next / previous tab"),
-        kv("F1..F8", "Jump to Feed Tags Actors Search Inbox Saves Profile Help"),
+        kv(
+            "F1..F8",
+            "Jump to Feed Tags Actors Search Inbox Saves Profile Help",
+        ),
         kv("j / k, Up / Down", "Move selection (scroll in Detail)"),
         kv("PgUp / PgDn, Home / End", "Scroll detail (Detail only)"),
         kv("Enter", "Open post / run search / activate"),
@@ -37,7 +37,10 @@ pub fn render_help(frame: &mut Frame, area: Rect) {
         kv("Click, Wheel", "Select/open tabs and rows, scroll"),
         Line::from(""),
         Line::from(Span::styled("— Feed —", Style::default().fg(Color::Green))),
-        kv("s / w / a / f", "Sort / window / actor filter / following toggle"),
+        kv(
+            "s / w / a / f",
+            "Sort / window / actor filter / following toggle",
+        ),
         kv("r", "Refresh"),
         kv("c", "Compose new post"),
         Line::from(""),
@@ -54,8 +57,14 @@ pub fn render_help(frame: &mut Frame, area: Rect) {
         Line::from(""),
         Line::from(Span::styled("— Other —", Style::default().fg(Color::Green))),
         kv("Ctrl+T (Search)", "Cycle post / comment / actor"),
-        kv("t (Tags→Actors→Profile)", "Tag sort / actor filter / posts-comments"),
-        kv("u / R / A (Inbox)", "Unread filter / mark read / mark all read"),
+        kv(
+            "t (Tags→Actors→Profile)",
+            "Tag sort / actor filter / posts-comments",
+        ),
+        kv(
+            "u / R / A (Inbox)",
+            "Unread filter / mark read / mark all read",
+        ),
         kv("f / u (Profile)", "Follow / unfollow"),
         kv("Tab (composer)", "Next field"),
         kv("Ctrl+S (composer)", "Publish / save"),

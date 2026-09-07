@@ -139,17 +139,15 @@ pub async fn handle_comment(
             depth,
             parent,
             body_html,
-        } => {
-            match resolve_comment_list_target(post_id.as_deref(), actor.as_deref())? {
-                CommentListTarget::Actor(username) => {
-                    list_actor_comments(client, output, &username).await?;
-                }
-                CommentListTarget::Post(raw_id) => {
-                    let p_id = parse_content_id(&raw_id);
-                    list_post_tree(client, output, &p_id, sort, depth, parent, body_html).await?;
-                }
+        } => match resolve_comment_list_target(post_id.as_deref(), actor.as_deref())? {
+            CommentListTarget::Actor(username) => {
+                list_actor_comments(client, output, &username).await?;
             }
-        }
+            CommentListTarget::Post(raw_id) => {
+                let p_id = parse_content_id(&raw_id);
+                list_post_tree(client, output, &p_id, sort, depth, parent, body_html).await?;
+            }
+        },
 
         CommentAction::Edit { id, body } => {
             if client.api_key().is_none() {

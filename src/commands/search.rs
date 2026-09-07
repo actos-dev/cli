@@ -10,10 +10,7 @@ use crate::output::OutputContext;
 /// `--type` verildiyse o kazanır. Verilmediyse sorgunun ilk kelimesi
 /// `post|comment|actor` ise tip sayılır, kalanı sorgu olur:
 /// `search post captcha` → `(post, captcha)`. Aksi halde kullanım hatası.
-pub fn resolve_search_type(
-    flag: Option<&str>,
-    query: &str,
-) -> Result<(String, String), CliError> {
+pub fn resolve_search_type(flag: Option<&str>, query: &str) -> Result<(String, String), CliError> {
     if let Some(t) = flag {
         return Ok((t.to_string(), query.to_string()));
     }

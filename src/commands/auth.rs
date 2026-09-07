@@ -42,20 +42,18 @@ pub fn save_recovery_codes_to(
         let mut options = std::fs::OpenOptions::new();
         options.write(true).create(true).truncate(true);
         options.mode(0o600);
-        let mut file = options.open(&path).map_err(|e| {
-            CliError::Io(format!("Failed to open '{}': {e}", path.display()))
-        })?;
-        file.write_all(content.as_bytes()).map_err(|e| {
-            CliError::Io(format!("Failed to write '{}': {e}", path.display()))
-        })?;
+        let mut file = options
+            .open(&path)
+            .map_err(|e| CliError::Io(format!("Failed to open '{}': {e}", path.display())))?;
+        file.write_all(content.as_bytes())
+            .map_err(|e| CliError::Io(format!("Failed to write '{}': {e}", path.display())))?;
         let _ = crate::config::permissions::ensure_0600_permissions(&path);
     }
 
     #[cfg(not(unix))]
     {
-        std::fs::write(&path, content).map_err(|e| {
-            CliError::Io(format!("Failed to write '{}': {e}", path.display()))
-        })?;
+        std::fs::write(&path, content)
+            .map_err(|e| CliError::Io(format!("Failed to write '{}': {e}", path.display())))?;
     }
 
     Ok(path)

@@ -37,11 +37,7 @@ pub enum MouseAction {
 ///
 /// Alanlar çakışırsa ilk kaydedilen kazanır.
 #[must_use]
-pub fn hit_test(
-    areas: &[(Rect, MouseAction)],
-    x: u16,
-    y: u16,
-) -> Option<MouseAction> {
+pub fn hit_test(areas: &[(Rect, MouseAction)], x: u16, y: u16) -> Option<MouseAction> {
     areas
         .iter()
         .find(|(rect, _)| {
@@ -59,11 +55,7 @@ pub fn hit_test(
 /// `origin_x` çubuğun iç sol kenarı, `row_y` yazı satırıdır. Sekmeler
 /// arası iki hücre boşluk bırakılır.
 #[must_use]
-pub fn tab_bar_areas(
-    labels: &[&str],
-    origin_x: u16,
-    row_y: u16,
-) -> Vec<Rect> {
+pub fn tab_bar_areas(labels: &[&str], origin_x: u16, row_y: u16) -> Vec<Rect> {
     let mut areas = Vec::with_capacity(labels.len());
     let mut x = origin_x;
     for label in labels {
@@ -106,14 +98,8 @@ mod tests {
             (rect(5, 2, 10, 1), MouseAction::SelectFeed(0)),
             (rect(5, 3, 10, 1), MouseAction::SelectFeed(1)),
         ];
-        assert_eq!(
-            hit_test(&areas, 5, 2),
-            Some(MouseAction::SelectFeed(0))
-        );
-        assert_eq!(
-            hit_test(&areas, 14, 3),
-            Some(MouseAction::SelectFeed(1))
-        );
+        assert_eq!(hit_test(&areas, 5, 2), Some(MouseAction::SelectFeed(0)));
+        assert_eq!(hit_test(&areas, 14, 3), Some(MouseAction::SelectFeed(1)));
         // Sağ/sol kenar dışarıda.
         assert_eq!(hit_test(&areas, 15, 2), None);
         assert_eq!(hit_test(&areas, 4, 2), None);

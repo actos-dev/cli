@@ -81,9 +81,17 @@ pub enum EnterAction {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Overlay {
-    Reply { post_id: String, text: String },
-    Report { target_id: String, text: String },
-    ConfirmDeletePost { post_id: String },
+    Reply {
+        post_id: String,
+        text: String,
+    },
+    Report {
+        target_id: String,
+        text: String,
+    },
+    ConfirmDeletePost {
+        post_id: String,
+    },
     Composer {
         title: String,
         body: String,
@@ -127,7 +135,9 @@ impl Overlay {
     #[must_use]
     pub fn labeled_fields(&self) -> Option<[(&'static str, String); 3]> {
         match self {
-            Self::Composer { title, body, tags, .. } => Some([
+            Self::Composer {
+                title, body, tags, ..
+            } => Some([
                 ("Title", title.clone()),
                 ("Body", body.clone()),
                 ("Tags", tags.clone()),
@@ -137,7 +147,9 @@ impl Overlay {
                 ("Body", body.clone()),
                 ("", String::new()),
             ]),
-            Self::EditProfile { display_name, bio, .. } => Some([
+            Self::EditProfile {
+                display_name, bio, ..
+            } => Some([
                 ("Display name", display_name.clone()),
                 ("Bio", bio.clone()),
                 ("", String::new()),
@@ -175,16 +187,27 @@ impl Overlay {
 
     fn focused_text_mut(&mut self) -> Option<&mut String> {
         match self {
-            Self::Composer { title, body, tags, focus } => Some(match focus {
+            Self::Composer {
+                title,
+                body,
+                tags,
+                focus,
+            } => Some(match focus {
                 OverlayField::First => title,
                 OverlayField::Second => body,
                 OverlayField::Third => tags,
             }),
-            Self::EditPost { title, body, focus, .. } => Some(match focus {
+            Self::EditPost {
+                title, body, focus, ..
+            } => Some(match focus {
                 OverlayField::First => title,
                 _ => body,
             }),
-            Self::EditProfile { display_name, bio, focus } => Some(match focus {
+            Self::EditProfile {
+                display_name,
+                bio,
+                focus,
+            } => Some(match focus {
                 OverlayField::First => display_name,
                 _ => bio,
             }),
@@ -521,8 +544,7 @@ impl App {
                     .and_then(|v| v.as_str())
                     .map(ToString::to_string);
                 if let Some(list) = val.get("tags")
-                    && let Ok(tags) =
-                        serde_json::from_value::<Vec<TagSummary>>(list.clone())
+                    && let Ok(tags) = serde_json::from_value::<Vec<TagSummary>>(list.clone())
                 {
                     let n = tags.len();
                     self.tags.set_items(tags);
@@ -548,8 +570,7 @@ impl App {
                     .and_then(|v| v.as_str())
                     .map(ToString::to_string);
                 if let Some(list) = val.get("tags")
-                    && let Ok(tags) =
-                        serde_json::from_value::<Vec<TagSummary>>(list.clone())
+                    && let Ok(tags) = serde_json::from_value::<Vec<TagSummary>>(list.clone())
                 {
                     self.tags.items.extend(tags);
                     self.tags.cursor = next;
@@ -584,8 +605,7 @@ impl App {
                     .and_then(|v| v.as_str())
                     .map(ToString::to_string);
                 if let Some(list) = val.get("posts")
-                    && let Ok(posts) =
-                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                    && let Ok(posts) = serde_json::from_value::<Vec<ContentSummary>>(list.clone())
                 {
                     let n = posts.len();
                     self.tag_posts.set_items(posts);
@@ -615,8 +635,7 @@ impl App {
                     .and_then(|v| v.as_str())
                     .map(ToString::to_string);
                 if let Some(list) = val.get("posts")
-                    && let Ok(posts) =
-                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                    && let Ok(posts) = serde_json::from_value::<Vec<ContentSummary>>(list.clone())
                 {
                     self.tag_posts.items.extend(posts);
                     self.tag_posts.cursor = next;
@@ -659,8 +678,7 @@ impl App {
                     .and_then(|v| v.as_str())
                     .map(ToString::to_string);
                 if let Some(list) = val.get("actors")
-                    && let Ok(actors) =
-                        serde_json::from_value::<Vec<ActorSummary>>(list.clone())
+                    && let Ok(actors) = serde_json::from_value::<Vec<ActorSummary>>(list.clone())
                 {
                     let n = actors.len();
                     self.actors.set_items(actors);
@@ -688,8 +706,7 @@ impl App {
 
     pub async fn refresh_inbox(&mut self, client: &ApiClient) {
         if client.api_key().is_none() {
-            self.status_message =
-                "Inbox needs login. Run 'actos auth login' first.".to_string();
+            self.status_message = "Inbox needs login. Run 'actos auth login' first.".to_string();
             return;
         }
         self.status_message = "Loading inbox...".to_string();
@@ -703,7 +720,10 @@ impl App {
                     .get("next_cursor")
                     .and_then(|v| v.as_str())
                     .map(ToString::to_string);
-                let total = val.get("unread_count").and_then(|v| v.as_i64()).unwrap_or(0);
+                let total = val
+                    .get("unread_count")
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
                 self.inbox_unread_total = total;
                 if let Some(list) = val.get("notifications")
                     && let Ok(items) =
@@ -730,7 +750,10 @@ impl App {
         if self.inbox_unread_only {
             params.push(("unread", "true"));
         }
-        match client.paginate("/me/inbox", &params, 25, Some(&cursor)).await {
+        match client
+            .paginate("/me/inbox", &params, 25, Some(&cursor))
+            .await
+        {
             Ok((val, _rl)) => {
                 let next = val
                     .get("next_cursor")
@@ -816,8 +839,7 @@ impl App {
 
     pub async fn refresh_saves(&mut self, client: &ApiClient) {
         if client.api_key().is_none() {
-            self.status_message =
-                "Saves need login. Run 'actos auth login' first.".to_string();
+            self.status_message = "Saves need login. Run 'actos auth login' first.".to_string();
             return;
         }
         self.status_message = "Loading saves...".to_string();
@@ -828,8 +850,7 @@ impl App {
                     .and_then(|v| v.as_str())
                     .map(ToString::to_string);
                 if let Some(list) = val.get("saves")
-                    && let Ok(items) =
-                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                    && let Ok(items) = serde_json::from_value::<Vec<ContentSummary>>(list.clone())
                 {
                     let n = items.len();
                     self.saves.set_items(items);
@@ -855,8 +876,7 @@ impl App {
                     .and_then(|v| v.as_str())
                     .map(ToString::to_string);
                 if let Some(list) = val.get("saves")
-                    && let Ok(items) =
-                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                    && let Ok(items) = serde_json::from_value::<Vec<ContentSummary>>(list.clone())
                 {
                     self.saves.items.extend(items);
                     self.saves.cursor = next;
@@ -1032,14 +1052,9 @@ impl App {
                 }
             },
         };
-        match client
-            .get_json(&format!("/actors/{target}"), None)
-            .await
-        {
+        match client.get_json(&format!("/actors/{target}"), None).await {
             Ok((val, _)) => {
-                if let Ok(profile) =
-                    serde_json::from_value::<ActorProfileResponse>(val)
-                {
+                if let Ok(profile) = serde_json::from_value::<ActorProfileResponse>(val) {
                     self.profile_info = Some(profile);
                 }
             }
@@ -1069,8 +1084,7 @@ impl App {
                     .and_then(|v| v.as_str())
                     .map(ToString::to_string);
                 if let Some(list) = val.get(key)
-                    && let Ok(items) =
-                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                    && let Ok(items) = serde_json::from_value::<Vec<ContentSummary>>(list.clone())
                 {
                     let n = items.len();
                     self.profile_posts.set_items(items);
@@ -1099,12 +1113,7 @@ impl App {
             "comments"
         };
         match client
-            .paginate(
-                &format!("/actors/{target}/{kind}"),
-                &[],
-                25,
-                Some(&cursor),
-            )
+            .paginate(&format!("/actors/{target}/{kind}"), &[], 25, Some(&cursor))
             .await
         {
             Ok((val, _)) => {
@@ -1113,8 +1122,7 @@ impl App {
                     .and_then(|v| v.as_str())
                     .map(ToString::to_string);
                 if let Some(list) = val.get(kind)
-                    && let Ok(items) =
-                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                    && let Ok(items) = serde_json::from_value::<Vec<ContentSummary>>(list.clone())
                 {
                     self.profile_posts.items.extend(items);
                     self.profile_posts.cursor = next;
@@ -1165,7 +1173,13 @@ impl App {
             reqwest::Method::DELETE
         };
         match client
-            .execute_request(method, &format!("/actors/{username}/follow"), None, None, None)
+            .execute_request(
+                method,
+                &format!("/actors/{username}/follow"),
+                None,
+                None,
+                None,
+            )
             .await
         {
             Ok(_) => {
@@ -1424,10 +1438,11 @@ impl App {
                     Err(e) => self.status_message = format!("Delete failed: {e}"),
                 }
             }
-            Overlay::Composer { title, body, tags, .. } => {
+            Overlay::Composer {
+                title, body, tags, ..
+            } => {
                 if title.trim().is_empty() || body.trim().is_empty() {
-                    self.status_message =
-                        "Title and body are required — nothing sent.".to_string();
+                    self.status_message = "Title and body are required — nothing sent.".to_string();
                     return;
                 }
                 let tag_list = crate::commands::post::split_tags(std::slice::from_ref(&tags));
@@ -1456,10 +1471,14 @@ impl App {
                     Err(e) => self.status_message = format!("Publish failed: {e}"),
                 }
             }
-            Overlay::EditPost { post_id, title, body, .. } => {
+            Overlay::EditPost {
+                post_id,
+                title,
+                body,
+                ..
+            } => {
                 if title.trim().is_empty() || body.trim().is_empty() {
-                    self.status_message =
-                        "Title and body are required — nothing sent.".to_string();
+                    self.status_message = "Title and body are required — nothing sent.".to_string();
                     return;
                 }
                 let req = serde_json::json!({ "title": title, "body": body });
@@ -1483,8 +1502,7 @@ impl App {
             }
             Overlay::EditComment { comment_id, text } => {
                 if text.trim().is_empty() {
-                    self.status_message =
-                        "Comment is empty — nothing sent.".to_string();
+                    self.status_message = "Comment is empty — nothing sent.".to_string();
                     return;
                 }
                 let req = serde_json::json!({ "body": text });
@@ -1506,7 +1524,9 @@ impl App {
                     Err(e) => self.status_message = format!("Update failed: {e}"),
                 }
             }
-            Overlay::EditProfile { display_name, bio, .. } => {
+            Overlay::EditProfile {
+                display_name, bio, ..
+            } => {
                 let mut req = serde_json::Map::new();
                 if !display_name.trim().is_empty() {
                     req.insert(
@@ -1515,10 +1535,7 @@ impl App {
                     );
                 }
                 if !bio.trim().is_empty() {
-                    req.insert(
-                        "bio".to_string(),
-                        serde_json::Value::String(bio.clone()),
-                    );
+                    req.insert("bio".to_string(), serde_json::Value::String(bio.clone()));
                 }
                 if req.is_empty() {
                     self.status_message = "Nothing changed.".to_string();
@@ -1529,11 +1546,7 @@ impl App {
                         reqwest::Method::PATCH,
                         "/actors/me",
                         None,
-                        Some(
-                            serde_json::Value::Object(req)
-                                .to_string()
-                                .into_bytes(),
-                        ),
+                        Some(serde_json::Value::Object(req).to_string().into_bytes()),
                         None,
                     )
                     .await
@@ -1814,7 +1827,10 @@ mod tests {
         );
         // Büyük/küçük harf ve markdown işareti fark etmez.
         assert_eq!(
-            strip_leading_title("# **PS AUX:** the linux task manager for scripts\n\ny", Some(title)),
+            strip_leading_title(
+                "# **PS AUX:** the linux task manager for scripts\n\ny",
+                Some(title)
+            ),
             "\ny"
         );
         // Farklı başlık korunur.
@@ -1941,7 +1957,10 @@ mod tests {
         app.open_overlay_report(&client);
         assert!(matches!(app.overlay, Some(Overlay::Report { .. })));
         app.open_confirm_delete(&client);
-        assert!(matches!(app.overlay, Some(Overlay::ConfirmDeletePost { .. })));
+        assert!(matches!(
+            app.overlay,
+            Some(Overlay::ConfirmDeletePost { .. })
+        ));
     }
 
     #[tokio::test]
@@ -1963,25 +1982,19 @@ mod tests {
         let server = wiremock::MockServer::start().await;
         wiremock::Mock::given(wiremock::matchers::method("GET"))
             .and(wiremock::matchers::path("/tags"))
-            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(
-                serde_json::json!({
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
                     "tags": [
                         {"name": "rust", "post_count": 12,
                          "created_at": "2026-01-01T00:00:00Z"}
                     ],
                     "next_cursor": null
-                }),
-            ))
+                })),
+            )
             .mount(&server)
             .await;
-        let client = crate::client::ApiClient::new(
-            server.uri(),
-            None,
-            30,
-            false,
-            false,
-        )
-        .expect("mock client builds");
+        let client = crate::client::ApiClient::new(server.uri(), None, 30, false, false)
+            .expect("mock client builds");
         let mut app = test_app();
         app.refresh_tags(&client).await;
         assert_eq!(app.tags.items.len(), 1);
@@ -1994,8 +2007,8 @@ mod tests {
         let server = wiremock::MockServer::start().await;
         wiremock::Mock::given(wiremock::matchers::method("GET"))
             .and(wiremock::matchers::path("/me/inbox"))
-            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(
-                serde_json::json!({
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
                     "notifications": [
                         {"id": "n_1", "kind": "comment_on_post",
                          "actor": null, "target_type": "content",
@@ -2005,8 +2018,8 @@ mod tests {
                     ],
                     "next_cursor": null,
                     "unread_count": 7
-                }),
-            ))
+                })),
+            )
             .mount(&server)
             .await;
         let client = crate::client::ApiClient::new(

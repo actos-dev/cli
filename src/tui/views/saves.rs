@@ -11,9 +11,7 @@ use crate::tui::views::row_title;
 
 pub fn render_saves(frame: &mut Frame, app: &mut App, area: Rect) {
     if app.saves.items.is_empty() {
-        let empty = Block::default()
-            .title(" Saves ")
-            .borders(Borders::ALL);
+        let empty = Block::default().title(" Saves ").borders(Borders::ALL);
         frame.render_widget(empty, area);
         return;
     }

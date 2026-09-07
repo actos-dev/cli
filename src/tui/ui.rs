@@ -111,7 +111,11 @@ pub fn render_ui(frame: &mut Frame, app: &mut App) {
 }
 
 /// Ekranı ortalayan küçük kutu alanı hesaplar (yüzde cinsinden).
-fn centered_rect(percent_x: u16, percent_y: u16, area: ratatui::layout::Rect) -> ratatui::layout::Rect {
+fn centered_rect(
+    percent_x: u16,
+    percent_y: u16,
+    area: ratatui::layout::Rect,
+) -> ratatui::layout::Rect {
     let vertical = Layout::default()
         .direction(Direction::Vertical)
         .constraints([

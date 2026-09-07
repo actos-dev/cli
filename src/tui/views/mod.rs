@@ -15,11 +15,7 @@ use actos_sdk::actos_types::content::ContentSummary;
 #[must_use]
 pub fn row_title(item: &ContentSummary) -> String {
     if item.content_type == "comment" {
-        let flat = item
-            .body
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ");
+        let flat = item.body.split_whitespace().collect::<Vec<_>>().join(" ");
         let cut: String = flat.chars().take(40).collect();
         if flat.chars().count() > 40 {
             format!("{cut}…")
@@ -67,7 +63,10 @@ mod tests {
     fn test_row_title_post_and_comment() {
         assert_eq!(row_title(&post(Some("Hi"), "b", "post")), "Hi");
         assert_eq!(row_title(&post(None, "b", "post")), "(no title)");
-        assert_eq!(row_title(&post(None, "hello world", "comment")), "hello world");
+        assert_eq!(
+            row_title(&post(None, "hello world", "comment")),
+            "hello world"
+        );
         let long = post(None, &"x".repeat(50), "comment");
         assert!(row_title(&long).ends_with('…'));
     }

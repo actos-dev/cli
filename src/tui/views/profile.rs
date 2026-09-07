@@ -43,16 +43,11 @@ pub fn render_profile(frame: &mut Frame, app: &mut App, area: Rect) {
                 Style::default().fg(Color::Cyan),
             ),
         ]),
-        Line::from(Span::raw(
-            actor.bio.as_deref().unwrap_or("(no bio)"),
-        )),
+        Line::from(Span::raw(actor.bio.as_deref().unwrap_or("(no bio)"))),
         Line::from(Span::styled(
             format!(
                 "{} posts · {} comments · score {} · trust {}",
-                stats.post_count,
-                stats.comment_count,
-                stats.total_score,
-                actor.trust_level
+                stats.post_count, stats.comment_count, stats.total_score, actor.trust_level
             ),
             Style::default().fg(Color::DarkGray),
         )),
@@ -134,11 +129,11 @@ pub fn render_profile(frame: &mut Frame, app: &mut App, area: Rect) {
     );
     frame.render_widget(list, chunks[2]);
 
-    for (idx, rect) in
-        mouse::list_row_areas(chunks[2], app.profile_posts.items.len())
-            .into_iter()
-            .enumerate()
+    for (idx, rect) in mouse::list_row_areas(chunks[2], app.profile_posts.items.len())
+        .into_iter()
+        .enumerate()
     {
-        app.hit_areas.push((rect, MouseAction::SelectProfilePost(idx)));
+        app.hit_areas
+            .push((rect, MouseAction::SelectProfilePost(idx)));
     }
 }

@@ -10,9 +10,7 @@ use crate::tui::mouse::{self, MouseAction};
 
 pub fn render_actors(frame: &mut Frame, app: &mut App, area: Rect) {
     if app.actors.items.is_empty() {
-        let empty = Block::default()
-            .title(" Actors ")
-            .borders(Borders::ALL);
+        let empty = Block::default().title(" Actors ").borders(Borders::ALL);
         frame.render_widget(empty, area);
         return;
     }
