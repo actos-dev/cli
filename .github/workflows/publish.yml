@@ -1,9 +1,16 @@
 # Actos CLI — crates.io'ya yayınla.
 #
 # Paket `actos-cli`, ama `[[bin]] name = "actos"` sayesinde kurulan komut
-# yine `actos`. Yalnızca elle tetiklenir (workflow_dispatch): yayın geri
-# alınamaz, tetikleme bilinçli olmalı. CARGO_REGISTRY_TOKEN repo
-# secret'ından okunur, log'a asla basılmaz.
+# yine `actos`. CARGO_REGISTRY_TOKEN repo secret'ından okunur, log'a asla
+# basılmaz.
+#
+# İki tetik vardır:
+#   1. Otomatik: CI `main`'de yeşil bitince çalışır. Yalnızca Cargo.toml'daki
+#      sürüm crates.io'da YOKSA yayınlar (idempotent — aynı sürüm iki kez
+#      çıkmaz). Yani "versiyon yükseltme commit'i" bizzat yayın niyetidir;
+#      yarım iş çıkmaz çünkü CI kapısından geçmeyen kod buraya gelemez.
+#   2. Elle (workflow_dispatch): yeniden deneme/kurtarma için durur.
+#      `dry_run=false` verilmedikçe yalnızca kuru koşu yapar.
 #
 # Önkoşul: `actos-types` (crates.io) ve `actos` SDK (crates.io) yayında.
 
@@ -16,26 +23,71 @@ on:
         description: "Sadece kuru koşu (package + doğrula, yayınlama)"
         type: boolean
         default: true
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
 
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 jobs:
   publish:
     name: crates.io
+    # Otomatik yol yalnız CI yeşilse; manuel tetik her zaman çalışır.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # workflow_run olayında CI'nın koştuğu commit'e sabitle
+          # (arada yeni push gelmiş olabilir).
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: dtolnay/rust-toolchain@1.96
 
+      - name: Yayın kararı (sürüm crates.io'da yoksa)
+        id: decide
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          VERSION=$(cargo metadata --no-deps --format-version 1 \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['packages'][0]['version'])")
+          echo "crate version: $VERSION"
+          PUBLISHED=$(curl -fsSL -m 30 -A "actos-cli-ci/1.0" \
+            "https://crates.io/api/v1/crates/actos-cli" \
+            | python3 -c "import json,sys; print(' '.join(v['num'] for v in json.load(sys.stdin)['versions']))")
+          echo "published: $PUBLISHED"
+          case " $PUBLISHED " in
+            *" $VERSION "*) echo "should_publish=false" >> "$GITHUB_OUTPUT" ;;
+            *) echo "should_publish=true" >> "$GITHUB_OUTPUT" ;;
+          esac
+        env:
+          CARGO_TERM_COLOR: always
+
+      - name: Atla (sürüm zaten yayında)
+        if: steps.decide.outputs.should_publish != 'true'
+        run: echo "Version already on crates.io — nothing to do."
+
       - name: Kuru koşu (paket içeriğini doğrula)
+        if: steps.decide.outputs.should_publish == 'true'
         run: cargo publish --dry-run
         env:
           CARGO_TERM_COLOR: always
 
       - name: Gerçek yayın
-        if: github.event.inputs.dry_run == 'false'
+        if: >
+          steps.decide.outputs.should_publish == 'true' &&
+          (github.event_name != 'workflow_dispatch' ||
+           github.event.inputs.dry_run == 'false')
         run: cargo publish
         env:
           CARGO_TERM_COLOR: always
