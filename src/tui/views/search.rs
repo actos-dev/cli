@@ -5,8 +5,9 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
 use crate::tui::app::App;
+use crate::tui::mouse::MouseAction;
 
-pub fn render_search(frame: &mut Frame, app: &App, area: Rect) {
+pub fn render_search(frame: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(5)].as_ref())
@@ -72,4 +73,18 @@ pub fn render_search(frame: &mut Frame, app: &App, area: Rect) {
     );
 
     frame.render_widget(list, chunks[1]);
+
+    let list_top = chunks[1].y.saturating_add(1);
+    let visible = (chunks[1].height.saturating_sub(2)) as usize;
+    for (idx, _) in app.search_results.iter().enumerate().take(visible) {
+        app.hit_areas.push((
+            Rect::new(
+                chunks[1].x.saturating_add(1),
+                list_top.saturating_add(idx as u16),
+                chunks[1].width.saturating_sub(2),
+                1,
+            ),
+            MouseAction::SelectSearch(idx),
+        ));
+    }
 }

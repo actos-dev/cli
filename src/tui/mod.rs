@@ -1,6 +1,8 @@
 #[cfg(feature = "tui")]
 pub mod app;
 #[cfg(feature = "tui")]
+pub mod mouse;
+#[cfg(feature = "tui")]
 pub mod ui;
 #[cfg(feature = "tui")]
 pub mod views;
@@ -21,6 +23,7 @@ pub async fn run_tui(client: &ApiClient) -> Result<(), CliError> {
 
     use crossterm::{
         execute,
+        event::{DisableMouseCapture, EnableMouseCapture},
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     };
     use ratatui::Terminal;
@@ -28,7 +31,7 @@ pub async fn run_tui(client: &ApiClient) -> Result<(), CliError> {
 
     enable_raw_mode().map_err(|e| CliError::Io(format!("Failed to enable raw mode: {e}")))?;
     let mut stdout = std::io::stdout();
-    execute!(stdout, EnterAlternateScreen)
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)
         .map_err(|e| CliError::Io(format!("Failed to enter alternate screen: {e}")))?;
 
     let backend = CrosstermBackend::new(stdout);
@@ -41,10 +44,53 @@ pub async fn run_tui(client: &ApiClient) -> Result<(), CliError> {
 
     // Terminal durumunu geri yükle
     let _ = disable_raw_mode();
-    let _ = execute!(terminal.backend_mut(), LeaveAlternateScreen);
+    let _ = execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    );
     let _ = terminal.show_cursor();
 
     res
+}
+
+#[cfg(feature = "tui")]
+async fn handle_mouse(
+    app: &mut app::App,
+    client: &ApiClient,
+    m: crossterm::event::MouseEvent,
+) {
+    use crossterm::event::{MouseButton, MouseEventKind};
+
+    match m.kind {
+        MouseEventKind::Down(MouseButton::Left) => {
+            if app.show_help_popup {
+                app.show_help_popup = false;
+                return;
+            }
+            match mouse::hit_test(&app.hit_areas, m.column, m.row) {
+                Some(mouse::MouseAction::SwitchTab(tab)) => {
+                    if tab != app::CurrentTab::Detail {
+                        app.current_tab = tab;
+                    }
+                }
+                Some(mouse::MouseAction::SelectFeed(i)) => {
+                    if app.feed_selected == i {
+                        app.open_selected_post(client).await;
+                    } else {
+                        app.feed_selected = i;
+                    }
+                }
+                Some(mouse::MouseAction::SelectSearch(i)) => {
+                    app.search_selected = i;
+                }
+                None => {}
+            }
+        }
+        MouseEventKind::ScrollUp => app.move_up(),
+        MouseEventKind::ScrollDown => app.move_down(),
+        _ => {}
+    }
 }
 
 #[cfg(feature = "tui")]
@@ -63,9 +109,10 @@ async fn run_loop(
 
         if event::poll(Duration::from_millis(100))
             .map_err(|e| CliError::Io(format!("Event poll error: {e}")))?
-            && let Event::Key(key) =
-                event::read().map_err(|e| CliError::Io(format!("Event read error: {e}")))?
         {
+            match event::read().map_err(|e| CliError::Io(format!("Event read error: {e}")))? {
+                Event::Mouse(m) => handle_mouse(app, client, m).await,
+                Event::Key(key) => {
             if app.show_help_popup {
                 if key.code == KeyCode::Char('?') || key.code == KeyCode::Esc {
                     app.show_help_popup = false;
@@ -111,6 +158,9 @@ async fn run_loop(
                 }
                 KeyCode::Char(c) if app.current_tab == app::CurrentTab::Search => {
                     app.search_query.push(c);
+                }
+                _ => {}
+            }
                 }
                 _ => {}
             }

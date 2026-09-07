@@ -5,8 +5,9 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem};
 
 use crate::tui::app::App;
+use crate::tui::mouse::MouseAction;
 
-pub fn render_feed(frame: &mut Frame, app: &App, area: Rect) {
+pub fn render_feed(frame: &mut Frame, app: &mut App, area: Rect) {
     if app.feed_posts.is_empty() {
         let empty_block = Block::default()
             .title(" Feed (Empty) ")
@@ -56,4 +57,19 @@ pub fn render_feed(frame: &mut Frame, app: &App, area: Rect) {
     );
 
     frame.render_widget(list, area);
+
+    // Satır tıklama alanları: çerçeve içi, satır başına bir hücre.
+    let list_top = area.y.saturating_add(1);
+    let visible = (area.height.saturating_sub(2)) as usize;
+    for (idx, _) in app.feed_posts.iter().enumerate().take(visible) {
+        app.hit_areas.push((
+            Rect::new(
+                area.x.saturating_add(1),
+                list_top.saturating_add(idx as u16),
+                area.width.saturating_sub(2),
+                1,
+            ),
+            MouseAction::SelectFeed(idx),
+        ));
+    }
 }

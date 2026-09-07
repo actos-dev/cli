@@ -1,6 +1,8 @@
 use crate::client::ApiClient;
+use crate::tui::mouse::MouseAction;
 use actos_sdk::actos_types::actor::ActorProfileResponse;
 use actos_sdk::actos_types::content::{CommentNodeResponse, ContentSummary};
+use ratatui::layout::Rect;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CurrentTab {
@@ -25,6 +27,8 @@ pub struct App {
     pub status_message: String,
     pub show_help_popup: bool,
     pub should_quit: bool,
+    /// O karede tıklanabilir bölgeler (her çizimde baştan doldurulur).
+    pub hit_areas: Vec<(Rect, MouseAction)>,
 }
 
 impl App {
@@ -43,6 +47,7 @@ impl App {
             status_message: "Ready".to_string(),
             show_help_popup: false,
             should_quit: false,
+            hit_areas: Vec::new(),
         };
 
         app.refresh_feed(client).await;
