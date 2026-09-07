@@ -69,7 +69,12 @@ assert_eq "installed_version" "0.1.1" "$(installed_version "$FAKEBIN")"
 
 # --- latest_published (sahte cargo ile, ağ yok) ---
 FAKEDIR="$(mktemp -d)"
-printf '#!/bin/sh\necho arbitrarily >&2\necho \x27actos-cli = "0.2.0" # desc\x27\n' > "$FAKEDIR/cargo"
+cat > "$FAKEDIR/cargo" <<'EOF'
+#!/bin/sh
+echo arbitrarily >&2
+echo 'actos-cli = "0.2.0" # desc'
+EOF
+chmod +x "$FAKEDIR/cargo"
 chmod +x "$FAKEDIR/cargo"
 assert_eq "latest_published" \
     "0.2.0" \
