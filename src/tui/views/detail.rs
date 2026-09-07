@@ -7,29 +7,46 @@ use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use crate::tui::app::App;
 use actos_sdk::actos_types::content::CommentNodeResponse;
 
-fn build_comment_lines(node: &CommentNodeResponse, depth: usize, out: &mut Vec<Line>) {
+fn collect_comment_ids(nodes: &[CommentNodeResponse], out: &mut Vec<String>) {
+    for node in nodes {
+        out.push(node.content.id.clone());
+        collect_comment_ids(&node.replies, out);
+    }
+}
+
+fn build_comment_lines(
+    node: &CommentNodeResponse,
+    depth: usize,
+    selected_id: &str,
+    out: &mut Vec<Line>,
+) {
     let indent = "  ".repeat(depth);
     let marker = if depth > 0 { "└─ " } else { "• " };
 
-    let author_span = Span::styled(
-        format!("@{}: ", node.content.author.username),
-        Style::default().fg(Color::Cyan),
-    );
-    let body_span = Span::raw(node.content.body.clone());
-    let score_span = Span::styled(
-        format!(" (+{})", node.content.score),
-        Style::default().fg(Color::DarkGray),
-    );
-
-    out.push(Line::from(vec![
+    let body = if node.content.deleted {
+        "[deleted]".to_string()
+    } else {
+        node.content.body.clone()
+    };
+    let mut line = Line::from(vec![
         Span::raw(format!("{indent}{marker}")),
-        author_span,
-        body_span,
-        score_span,
-    ]));
+        Span::styled(
+            format!("@{}: ", node.content.author.username),
+            Style::default().fg(Color::Cyan),
+        ),
+        Span::raw(body),
+        Span::styled(
+            format!(" (+{})", node.content.score),
+            Style::default().fg(Color::DarkGray),
+        ),
+    ]);
+    if node.content.id == selected_id {
+        line = line.style(Style::default().add_modifier(Modifier::REVERSED));
+    }
+    out.push(line);
 
     for reply in &node.replies {
-        build_comment_lines(reply, depth + 1, out);
+        build_comment_lines(reply, depth + 1, selected_id, out);
     }
 }
 
@@ -39,67 +56,83 @@ pub fn render_detail(frame: &mut Frame, app: &mut App, area: Rect) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(area);
 
-    if let Some(ref post) = app.selected_post {
-        let title_str = post.title.as_deref().unwrap_or("(no title)");
-        let post_text = vec![
-            Line::from(vec![
-                Span::styled(
-                    title_str,
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::raw(" ("),
-                Span::styled(
-                    format!("@{}", post.author.username),
-                    Style::default().fg(Color::Cyan),
-                ),
-                Span::raw(")"),
-            ]),
-            Line::from(vec![
-                Span::raw("Score: "),
-                Span::styled(format!("{}", post.score), Style::default().fg(Color::Green)),
-                Span::raw(format!(" | Created: {}", post.created_at)),
-            ]),
-            Line::from(""),
-            Line::from(crate::tui::app::strip_leading_title(
-                &post.body,
-                post.title.as_deref(),
-            )),
-        ];
-
-        let post_len = post_text.len();
-        let post_widget = Paragraph::new(post_text)
-            .block(
-                Block::default()
-                    .title(" Post Details (+/- vote, S/X save, r reply, R report, D delete) ")
-                    .borders(Borders::ALL),
-            )
-            .wrap(Wrap { trim: true })
-            .scroll((app.detail_scroll.min(app.detail_lines), 0));
-
-        frame.render_widget(post_widget, chunks[0]);
-
-        let mut comment_lines = Vec::new();
-        if app.post_comments.is_empty() {
-            comment_lines.push(Line::from("No comments yet."));
-        } else {
-            for comment in &app.post_comments {
-                build_comment_lines(comment, 0, &mut comment_lines);
-            }
-        }
-        app.detail_lines = (post_len + comment_lines.len()) as u16;
-
-        let comments_widget = Paragraph::new(comment_lines)
-            .block(Block::default().title(" Comments ").borders(Borders::ALL))
-            .wrap(Wrap { trim: false })
-            .scroll((app.detail_scroll.min(app.detail_lines), 0));
-
-        frame.render_widget(comments_widget, chunks[1]);
-    } else {
+    let Some(post) = app.selected_post.clone() else {
         let empty_widget = Block::default()
             .title(" No Post Selected ")
             .borders(Borders::ALL);
         frame.render_widget(empty_widget, area);
+        return;
+    };
+
+    let title_str = post.title.as_deref().unwrap_or("(no title)");
+    let post_text = vec![
+        Line::from(vec![
+            Span::styled(
+                title_str,
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" ("),
+            Span::styled(
+                format!("@{}", post.author.username),
+                Style::default().fg(Color::Cyan),
+            ),
+            Span::raw(")"),
+        ]),
+        Line::from(vec![
+            Span::raw("Score: "),
+            Span::styled(format!("{}", post.score), Style::default().fg(Color::Green)),
+            Span::raw(format!(" | Created: {}", post.created_at)),
+        ]),
+        Line::from(""),
+        Line::from(crate::tui::app::strip_leading_title(
+            &post.body,
+            post.title.as_deref(),
+        )),
+    ];
+
+    let post_len = post_text.len();
+    let post_widget = Paragraph::new(post_text)
+        .block(
+            Block::default()
+                .title(" Post Details (+/- vote, S/X save, r reply, E edit, D delete) ")
+                .borders(Borders::ALL),
+        )
+        .wrap(Wrap { trim: true })
+        .scroll((app.detail_scroll.min(app.detail_lines), 0));
+
+    frame.render_widget(post_widget, chunks[0]);
+
+    app.comment_order.clear();
+    collect_comment_ids(&app.post_comments, &mut app.comment_order);
+    if app.comment_selected >= app.comment_order.len() {
+        app.comment_selected = 0;
     }
+    let selected_id = app
+        .comment_order
+        .get(app.comment_selected)
+        .cloned()
+        .unwrap_or_default();
+
+    let mut comment_lines = Vec::new();
+    if app.post_comments.is_empty() {
+        comment_lines.push(Line::from("No comments yet."));
+    } else {
+        for comment in &app.post_comments {
+            build_comment_lines(comment, 0, &selected_id, &mut comment_lines);
+        }
+    }
+    app.detail_lines = (post_len + comment_lines.len()) as u16;
+
+    let comments_widget = Paragraph::new(comment_lines)
+        .block(
+            Block::default()
+                .title(" Comments ([ ] select, e edit) ")
+                .borders(Borders::ALL),
+        )
+        .wrap(Wrap { trim: false })
+        .scroll((app.detail_scroll.min(app.detail_lines), 0));
+
+    frame.render_widget(comments_widget, chunks[1]);
 }

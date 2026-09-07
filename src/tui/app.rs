@@ -63,12 +63,48 @@ pub fn strip_leading_title(body: &str, title: Option<&str>) -> String {
     body.to_string()
 }
 
-/// Detail üstü giriş kutuları: yanıt, bildirim ve silme onayı.
+/// Detail üstü giriş kutuları: yanıt, bildirim, silme onayı,
+/// post/yorum/profil düzenleme ve yeni post bestecisi.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverlayField {
+    First,
+    Second,
+    Third,
+}
+
+/// Enter tuşunun overlay'deki anlamı.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnterAction {
+    Submit,
+    Newline,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Overlay {
     Reply { post_id: String, text: String },
     Report { target_id: String, text: String },
     ConfirmDeletePost { post_id: String },
+    Composer {
+        title: String,
+        body: String,
+        tags: String,
+        focus: OverlayField,
+    },
+    EditPost {
+        post_id: String,
+        title: String,
+        body: String,
+        focus: OverlayField,
+    },
+    EditComment {
+        comment_id: String,
+        text: String,
+    },
+    EditProfile {
+        display_name: String,
+        bio: String,
+        focus: OverlayField,
+    },
 }
 
 impl Overlay {
@@ -78,30 +114,137 @@ impl Overlay {
             Self::Reply { .. } => " Reply (Enter: send, Esc: cancel) ",
             Self::Report { .. } => " Report post (Enter: send, Esc: cancel) ",
             Self::ConfirmDeletePost { .. } => " Delete post? ",
+            Self::Composer { .. } => " New post (Tab: field, Ctrl+S: publish, Esc: cancel) ",
+            Self::EditPost { .. } => " Edit post (Tab: field, Ctrl+S: save, Esc: cancel) ",
+            Self::EditComment { .. } => " Edit comment (Enter: save, Esc: cancel) ",
+            Self::EditProfile { .. } => {
+                " Edit profile (Tab: field, Ctrl+S: save, empty = unchanged) "
+            }
+        }
+    }
+
+    /// Odaklı alanın etiketi + içeriği (çok alanlı overlay'ler).
+    #[must_use]
+    pub fn labeled_fields(&self) -> Option<[(&'static str, String); 3]> {
+        match self {
+            Self::Composer { title, body, tags, .. } => Some([
+                ("Title", title.clone()),
+                ("Body", body.clone()),
+                ("Tags", tags.clone()),
+            ]),
+            Self::EditPost { title, body, .. } => Some([
+                ("Title", title.clone()),
+                ("Body", body.clone()),
+                ("", String::new()),
+            ]),
+            Self::EditProfile { display_name, bio, .. } => Some([
+                ("Display name", display_name.clone()),
+                ("Bio", bio.clone()),
+                ("", String::new()),
+            ]),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn focus(&self) -> Option<OverlayField> {
+        match self {
+            Self::Composer { focus, .. }
+            | Self::EditPost { focus, .. }
+            | Self::EditProfile { focus, .. } => Some(*focus),
+            _ => None,
+        }
+    }
+
+    pub fn cycle_focus(&mut self) {
+        let next = match self.focus() {
+            Some(OverlayField::First) => OverlayField::Second,
+            Some(OverlayField::Second) => match self {
+                Self::Composer { .. } => OverlayField::Third,
+                _ => OverlayField::First,
+            },
+            _ => OverlayField::First,
+        };
+        match self {
+            Self::Composer { focus, .. }
+            | Self::EditPost { focus, .. }
+            | Self::EditProfile { focus, .. } => *focus = next,
+            _ => {}
+        }
+    }
+
+    fn focused_text_mut(&mut self) -> Option<&mut String> {
+        match self {
+            Self::Composer { title, body, tags, focus } => Some(match focus {
+                OverlayField::First => title,
+                OverlayField::Second => body,
+                OverlayField::Third => tags,
+            }),
+            Self::EditPost { title, body, focus, .. } => Some(match focus {
+                OverlayField::First => title,
+                _ => body,
+            }),
+            Self::EditProfile { display_name, bio, focus } => Some(match focus {
+                OverlayField::First => display_name,
+                _ => bio,
+            }),
+            _ => None,
         }
     }
 
     #[must_use]
     pub fn text(&self) -> Option<&str> {
         match self {
-            Self::Reply { text, .. } | Self::Report { text, .. } => Some(text),
-            Self::ConfirmDeletePost { .. } => None,
+            Self::Reply { text, .. }
+            | Self::Report { text, .. }
+            | Self::EditComment { text, .. } => Some(text),
+            _ => None,
         }
     }
 
     pub fn push_char(&mut self, c: char) {
+        let body_focused = self.focus() == Some(OverlayField::Second);
+        if let Some(t) = self.focused_text_mut() {
+            if c != '\n' || body_focused {
+                t.push(c);
+            }
+            return;
+        }
         match self {
-            Self::Reply { text, .. } | Self::Report { text, .. } => text.push(c),
+            Self::Reply { text, .. }
+            | Self::Report { text, .. }
+            | Self::EditComment { text, .. } => text.push(c),
             Self::ConfirmDeletePost { .. } => {}
+            Self::Composer { .. } | Self::EditPost { .. } | Self::EditProfile { .. } => {}
         }
     }
 
     pub fn pop_char(&mut self) {
+        if let Some(t) = self.focused_text_mut() {
+            t.pop();
+            return;
+        }
         match self {
-            Self::Reply { text, .. } | Self::Report { text, .. } => {
+            Self::Reply { text, .. }
+            | Self::Report { text, .. }
+            | Self::EditComment { text, .. } => {
                 text.pop();
             }
-            Self::ConfirmDeletePost { .. } => {}
+            _ => {}
+        }
+    }
+
+    #[must_use]
+    pub fn enter_action(&self) -> EnterAction {
+        match self {
+            Self::Composer { focus, .. }
+            | Self::EditPost { focus, .. }
+            | Self::EditProfile { focus, .. }
+                if *focus == OverlayField::Second =>
+            {
+                EnterAction::Newline
+            }
+            _ => EnterAction::Submit,
         }
     }
 }
@@ -113,6 +256,8 @@ pub struct App {
     pub feed: PagedList<ContentSummary>,
     pub selected_post: Option<ContentSummary>,
     pub post_comments: Vec<CommentNodeResponse>,
+    pub comment_order: Vec<String>,
+    pub comment_selected: usize,
     pub detail_scroll: u16,
     pub detail_lines: u16,
     pub overlay: Option<Overlay>,
@@ -196,6 +341,8 @@ impl App {
             feed: PagedList::default(),
             selected_post: None,
             post_comments: Vec::new(),
+            comment_order: Vec::new(),
+            comment_selected: 0,
             detail_scroll: 0,
             detail_lines: 0,
             overlay: None,
@@ -1105,6 +1252,115 @@ impl App {
         }
     }
 
+    pub fn open_composer(&mut self, client: &ApiClient) {
+        if let Err(msg) = Self::require_login(client) {
+            self.status_message = msg;
+            return;
+        }
+        self.overlay = Some(Overlay::Composer {
+            title: String::new(),
+            body: String::new(),
+            tags: String::new(),
+            focus: OverlayField::First,
+        });
+    }
+
+    pub fn open_edit_post(&mut self, client: &ApiClient) {
+        if let Err(msg) = Self::require_login(client) {
+            self.status_message = msg;
+            return;
+        }
+        match self.selected_post.clone() {
+            Some(p) => {
+                self.overlay = Some(Overlay::EditPost {
+                    post_id: p.id,
+                    title: p.title.unwrap_or_default(),
+                    body: p.body,
+                    focus: OverlayField::First,
+                });
+            }
+            None => self.status_message = "No post open.".to_string(),
+        }
+    }
+
+    pub fn open_edit_comment(&mut self, client: &ApiClient) {
+        if let Err(msg) = Self::require_login(client) {
+            self.status_message = msg;
+            return;
+        }
+        let id = self
+            .comment_order
+            .get(self.comment_selected)
+            .cloned()
+            .unwrap_or_default();
+        match self.find_comment_body(&id) {
+            Some(body) => {
+                self.overlay = Some(Overlay::EditComment {
+                    comment_id: id,
+                    text: body,
+                });
+            }
+            None => self.status_message = "No comment selected.".to_string(),
+        }
+    }
+
+    pub fn open_edit_profile(&mut self, client: &ApiClient) {
+        if let Err(msg) = Self::require_login(client) {
+            self.status_message = msg;
+            return;
+        }
+        match self.profile_info.clone() {
+            Some(info) => {
+                self.overlay = Some(Overlay::EditProfile {
+                    display_name: info.actor.display_name.unwrap_or_default(),
+                    bio: String::new(),
+                    focus: OverlayField::First,
+                });
+            }
+            None => self.status_message = "No profile loaded.".to_string(),
+        }
+    }
+
+    /// Yorum imlecini ağaç sırasında gezdirir ([ ve ]).
+    pub fn cycle_comment(&mut self, delta: i16) {
+        if self.comment_order.is_empty() {
+            return;
+        }
+        let max = self.comment_order.len() as i16 - 1;
+        let next = self.comment_selected as i16 + delta;
+        self.comment_selected = next.clamp(0, max) as usize;
+    }
+
+    fn find_comment_body(&self, id: &str) -> Option<String> {
+        fn walk(nodes: &[CommentNodeResponse], id: &str) -> Option<String> {
+            for node in nodes {
+                if node.content.id == id && !node.content.deleted {
+                    return Some(node.content.body.clone());
+                }
+                if let Some(found) = walk(&node.replies, id) {
+                    return Some(found);
+                }
+            }
+            None
+        }
+        if id.is_empty() {
+            return None;
+        }
+        walk(&self.post_comments, id)
+    }
+
+    async fn reload_post(&mut self, client: &ApiClient, post_id: &str) {
+        match client.get_json(&format!("/posts/{post_id}"), None).await {
+            Ok((val, _)) => {
+                if let Ok(post) = serde_json::from_value::<ContentSummary>(val) {
+                    self.selected_post = Some(post);
+                    self.reload_comments(client).await;
+                }
+            }
+            Err(e) => self.status_message = format!("Could not reload post: {e}"),
+        }
+    }
+
     /// Açık overlay'i çalıştırır (Enter). Boş metin gönderilmez.
     pub async fn submit_overlay(&mut self, client: &ApiClient) {
         let Some(overlay) = self.overlay.clone() else {
@@ -1166,6 +1422,128 @@ impl App {
                         self.refresh_feed(client).await;
                     }
                     Err(e) => self.status_message = format!("Delete failed: {e}"),
+                }
+            }
+            Overlay::Composer { title, body, tags, .. } => {
+                if title.trim().is_empty() || body.trim().is_empty() {
+                    self.status_message =
+                        "Title and body are required — nothing sent.".to_string();
+                    return;
+                }
+                let tag_list = crate::commands::post::split_tags(std::slice::from_ref(&tags));
+                let req = serde_json::json!({
+                    "title": title.trim(),
+                    "body": body,
+                    "tags": tag_list,
+                    "metadata": {},
+                });
+                // POST'ta istemci otomatik Idempotency-Key üretir (çift post yok).
+                match client.post_json("/posts", &req, None).await {
+                    Ok((val, _)) => {
+                        self.overlay = None;
+                        match serde_json::from_value::<ContentSummary>(val) {
+                            Ok(post) => {
+                                let id = post.id.clone();
+                                self.open_post_detail(client, post).await;
+                                self.status_message = format!("Published {id}.");
+                            }
+                            Err(_) => {
+                                self.status_message = "Published.".to_string();
+                                self.refresh_feed(client).await;
+                            }
+                        }
+                    }
+                    Err(e) => self.status_message = format!("Publish failed: {e}"),
+                }
+            }
+            Overlay::EditPost { post_id, title, body, .. } => {
+                if title.trim().is_empty() || body.trim().is_empty() {
+                    self.status_message =
+                        "Title and body are required — nothing sent.".to_string();
+                    return;
+                }
+                let req = serde_json::json!({ "title": title, "body": body });
+                match client
+                    .execute_request(
+                        reqwest::Method::PATCH,
+                        &format!("/posts/{post_id}"),
+                        None,
+                        Some(req.to_string().into_bytes()),
+                        None,
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        self.overlay = None;
+                        self.status_message = "Post updated.".to_string();
+                        self.reload_post(client, &post_id.clone()).await;
+                    }
+                    Err(e) => self.status_message = format!("Update failed: {e}"),
+                }
+            }
+            Overlay::EditComment { comment_id, text } => {
+                if text.trim().is_empty() {
+                    self.status_message =
+                        "Comment is empty — nothing sent.".to_string();
+                    return;
+                }
+                let req = serde_json::json!({ "body": text });
+                match client
+                    .execute_request(
+                        reqwest::Method::PATCH,
+                        &format!("/comments/{comment_id}"),
+                        None,
+                        Some(req.to_string().into_bytes()),
+                        None,
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        self.overlay = None;
+                        self.status_message = "Comment updated.".to_string();
+                        self.reload_comments(client).await;
+                    }
+                    Err(e) => self.status_message = format!("Update failed: {e}"),
+                }
+            }
+            Overlay::EditProfile { display_name, bio, .. } => {
+                let mut req = serde_json::Map::new();
+                if !display_name.trim().is_empty() {
+                    req.insert(
+                        "display_name".to_string(),
+                        serde_json::Value::String(display_name.trim().to_string()),
+                    );
+                }
+                if !bio.trim().is_empty() {
+                    req.insert(
+                        "bio".to_string(),
+                        serde_json::Value::String(bio.clone()),
+                    );
+                }
+                if req.is_empty() {
+                    self.status_message = "Nothing changed.".to_string();
+                    return;
+                }
+                match client
+                    .execute_request(
+                        reqwest::Method::PATCH,
+                        "/actors/me",
+                        None,
+                        Some(
+                            serde_json::Value::Object(req)
+                                .to_string()
+                                .into_bytes(),
+                        ),
+                        None,
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        self.overlay = None;
+                        self.status_message = "Profile updated.".to_string();
+                        self.refresh_profile_content(client).await;
+                    }
+                    Err(e) => self.status_message = format!("Update failed: {e}"),
                 }
             }
         }
@@ -1350,6 +1728,8 @@ mod tests {
             feed: PagedList::default(),
             selected_post: None,
             post_comments: Vec::new(),
+            comment_order: Vec::new(),
+            comment_selected: 0,
             detail_scroll: 0,
             detail_lines: 0,
             overlay: None,
@@ -1642,6 +2022,94 @@ mod tests {
         assert_eq!(app.inbox.items.len(), 1);
         assert_eq!(app.inbox_unread_total, 7);
         assert!(app.inbox.items[0].read_at.is_none());
+    }
+
+    #[test]
+    fn test_overlay_focus_cycle_and_enter() {
+        use OverlayField::{First, Second, Third};
+        let mut o = Overlay::Composer {
+            title: String::new(),
+            body: String::new(),
+            tags: String::new(),
+            focus: First,
+        };
+        assert_eq!(o.focus(), Some(First));
+        assert_eq!(o.enter_action(), EnterAction::Submit);
+        o.cycle_focus();
+        assert_eq!(o.focus(), Some(Second));
+        assert_eq!(o.enter_action(), EnterAction::Newline);
+        o.push_char('x');
+        o.push_char('\n');
+        assert_eq!(o.labeled_fields().unwrap()[1].1, "x\n");
+        o.cycle_focus();
+        assert_eq!(o.focus(), Some(Third));
+        o.push_char('\n');
+        assert_eq!(o.labeled_fields().unwrap()[2].1, "");
+        o.cycle_focus();
+        assert_eq!(o.focus(), Some(First));
+
+        let mut e = Overlay::EditPost {
+            post_id: "c_1".to_string(),
+            title: String::new(),
+            body: String::new(),
+            focus: First,
+        };
+        e.cycle_focus();
+        assert_eq!(e.focus(), Some(Second));
+        e.cycle_focus();
+        assert_eq!(e.focus(), Some(First));
+    }
+
+    #[tokio::test]
+    async fn test_composer_validation_sends_nothing() {
+        let client = test_client(Some("actos_test"));
+        let mut app = test_app();
+        app.overlay = Some(Overlay::Composer {
+            title: "   ".to_string(),
+            body: "b".to_string(),
+            tags: String::new(),
+            focus: OverlayField::First,
+        });
+        app.submit_overlay(&client).await;
+        assert!(app.overlay.is_some());
+        assert!(app.status_message.contains("required"));
+    }
+
+    #[test]
+    fn test_find_comment_body_and_cycle() {
+        let tree: Vec<CommentNodeResponse> = serde_json::from_value(serde_json::json!([
+            {"id": "c_a", "content_type": "comment",
+             "author": {"id": "a_1", "username": "u", "actor_type": "human",
+                 "display_name": null, "bio": null,
+                 "created_at": "2026-01-01T00:00:00Z",
+                 "trust_level": 0, "avatar_url": null},
+             "author_deleted": false, "title": null, "body": "top",
+             "body_format": "markdown", "body_html": null, "metadata": {},
+             "tags": [], "score": 1, "upvotes": 1, "downvotes": 0,
+             "comment_count": 0, "created_at": "2026-01-01T00:00:00Z",
+             "edited_at": null, "attachments": null, "deleted": false,
+             "replies": [
+                {"id": "c_b", "content_type": "comment",
+                 "author": {"id": "a_1", "username": "u", "actor_type": "human",
+                     "display_name": null, "bio": null,
+                     "created_at": "2026-01-01T00:00:00Z",
+                     "trust_level": 0, "avatar_url": null},
+                 "author_deleted": false, "title": null, "body": "nested",
+                 "body_format": "markdown", "body_html": null, "metadata": {},
+                 "tags": [], "score": 0, "upvotes": 0, "downvotes": 0,
+                 "comment_count": 0, "created_at": "2026-01-01T00:00:00Z",
+                 "edited_at": null, "attachments": null, "deleted": false,
+                 "replies": []}
+             ]}
+        ]))
+        .expect("fixture parses");
+        let mut app = test_app();
+        app.post_comments = tree;
+        assert_eq!(app.find_comment_body("c_b"), Some("nested".to_string()));
+        assert_eq!(app.find_comment_body("nope"), None);
+        // Render sırası toplanmadan imleç oynamaz.
+        app.cycle_comment(1);
+        assert_eq!(app.comment_selected, 0);
     }
 
     #[test]

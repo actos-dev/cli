@@ -156,6 +156,48 @@ fn render_overlay(
             ]);
             frame.render_widget(text, inner);
         }
+        _ if overlay.labeled_fields().is_some() => {
+            let fields = overlay.labeled_fields().unwrap_or([
+                ("", String::new()),
+                ("", String::new()),
+                ("", String::new()),
+            ]);
+            let focus_idx = match overlay.focus() {
+                Some(crate::tui::app::OverlayField::First) => 0,
+                Some(crate::tui::app::OverlayField::Second) => 1,
+                _ => 2,
+            };
+            let mut lines = Vec::new();
+            for (i, (label, value)) in fields.iter().enumerate() {
+                if label.is_empty() {
+                    continue;
+                }
+                let marker = if i == focus_idx { "> " } else { "  " };
+                let style = if i == focus_idx {
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                };
+                let shown = if i == focus_idx {
+                    format!("{value}█")
+                } else {
+                    value.clone()
+                };
+                lines.push(Line::from(vec![
+                    Span::styled(format!("{marker}{label}: "), style),
+                    Span::raw(shown),
+                ]));
+            }
+            lines.push(Line::from(""));
+            lines.push(Line::from(Span::styled(
+                "Tab: field   Enter: newline/submit   Ctrl+S: submit   Esc: cancel",
+                Style::default().fg(Color::DarkGray),
+            )));
+            let text = Paragraph::new(lines).wrap(ratatui::widgets::Wrap { trim: false });
+            frame.render_widget(text, inner);
+        }
         _ => {
             let content = overlay.text().unwrap_or_default();
             let text = Paragraph::new(vec![

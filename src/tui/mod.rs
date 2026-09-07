@@ -207,7 +207,29 @@ async fn run_loop(
                     KeyCode::Esc => {
                         app.overlay = None;
                     }
+                    KeyCode::Tab => {
+                        if let Some(o) = app.overlay.as_mut() {
+                            o.cycle_focus();
+                        }
+                    }
                     KeyCode::Enter => {
+                        let newline = matches!(
+                            app.overlay.as_ref().map(|o| o.enter_action()),
+                            Some(crate::tui::app::EnterAction::Newline)
+                        );
+                        if newline {
+                            if let Some(o) = app.overlay.as_mut() {
+                                o.push_char('\n');
+                            }
+                        } else {
+                            app.submit_overlay(client).await;
+                        }
+                    }
+                    KeyCode::Char('s')
+                        if key
+                            .modifiers
+                            .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                    {
                         app.submit_overlay(client).await;
                     }
                     KeyCode::Backspace => {
@@ -298,6 +320,24 @@ async fn run_loop(
                 }
                 KeyCode::Char('D') if app.current_tab == app::CurrentTab::Detail => {
                     app.open_confirm_delete(client);
+                }
+                KeyCode::Char('E') if app.current_tab == app::CurrentTab::Detail => {
+                    app.open_edit_post(client);
+                }
+                KeyCode::Char('e') if app.current_tab == app::CurrentTab::Detail => {
+                    app.open_edit_comment(client);
+                }
+                KeyCode::Char('[') if app.current_tab == app::CurrentTab::Detail => {
+                    app.cycle_comment(-1);
+                }
+                KeyCode::Char(']') if app.current_tab == app::CurrentTab::Detail => {
+                    app.cycle_comment(1);
+                }
+                KeyCode::Char('c') if app.current_tab == app::CurrentTab::Feed => {
+                    app.open_composer(client);
+                }
+                KeyCode::Char('E') if app.current_tab == app::CurrentTab::Profile => {
+                    app.open_edit_profile(client);
                 }
                 KeyCode::Char('r') if app.current_tab == app::CurrentTab::Feed => {
                     app.refresh_feed(client).await;
