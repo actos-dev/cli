@@ -275,5 +275,8 @@ username = "alice"
         ));
 
     let config = actos::config::Config::load_from_path(tmp.path()).unwrap();
-    assert_eq!(config.get("default", "api_key").unwrap(), "");
+    // SIKAYETLER #3: logout anahtarı da kimliği de siler (boş string değil, yok).
+    assert!(config.get("default", "api_key").is_err());
+    assert!(config.get("default", "username").is_err());
+    assert!(config.get("default", "actor_type").is_err());
 }

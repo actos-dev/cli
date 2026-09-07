@@ -346,6 +346,30 @@ impl Config {
             ))),
         }
     }
+
+    /// Kimlik anahtarını profilden tamamen kaldırır (SIKAYETLER #3).
+    ///
+    /// `set(key, "")` boş string bırakır ve `config list` boş gösterir;
+    /// bu metot `None` yapar ki liste "(not set)" göstersin.
+    pub fn clear_key(&mut self, profile_name: &str, key: &str) -> Result<(), CliError> {
+        match key {
+            "api_url" | "api_key" | "username" | "actor_type" => {
+                if let Some(profile) = self.profiles.get_mut(profile_name) {
+                    match key {
+                        "api_url" => profile.api_url = None,
+                        "api_key" => profile.api_key = None,
+                        "username" => profile.username = None,
+                        "actor_type" => profile.actor_type = None,
+                        _ => unreachable!(),
+                    }
+                }
+                Ok(())
+            }
+            other => Err(CliError::Usage(format!(
+                "Invalid config key '{other}'. Valid keys: api_url, api_key, username, actor_type, default_profile"
+            ))),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -414,6 +438,25 @@ mod tests {
 
         config.set("default", "default_profile", "custom").unwrap();
         assert_eq!(config.get("default", "default_profile").unwrap(), "custom");
+    }
+
+    #[test]
+    fn test_clear_key_removes_identity() {
+        let mut config = Config::default();
+        config.set("default", "api_key", "actos_k").unwrap();
+        config.set("default", "username", "alice").unwrap();
+        config.set("default", "actor_type", "human").unwrap();
+
+        config.clear_key("default", "api_key").unwrap();
+        config.clear_key("default", "username").unwrap();
+        config.clear_key("default", "actor_type").unwrap();
+
+        assert!(config.get("default", "api_key").is_err());
+        assert!(config.get("default", "username").is_err());
+        assert!(config.get("default", "actor_type").is_err());
+        assert!(config.clear_key("default", "nope").is_err());
+        // Var olmayan profil sessizce geçilir (logout güvenli).
+        assert!(config.clear_key("ghost", "username").is_ok());
     }
 
     #[test]

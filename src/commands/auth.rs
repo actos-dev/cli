@@ -308,7 +308,10 @@ pub async fn handle_auth(
         },
 
         AuthAction::Logout => {
-            let _ = config.set(target_profile, "api_key", "");
+            // SIKAYETLER #3: yalnız anahtar değil, kimlik de gider.
+            let _ = config.clear_key(target_profile, "api_key");
+            let _ = config.clear_key(target_profile, "username");
+            let _ = config.clear_key(target_profile, "actor_type");
             config.save()?;
 
             if output.json {
