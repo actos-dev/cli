@@ -17,6 +17,16 @@ pub enum MouseAction {
     SelectFeed(usize),
     /// Arama sonucu satırını seç.
     SelectSearch(usize),
+    /// Tag satırını seç (zaten seçiliyse postları aç).
+    SelectTag(usize),
+    /// Tag postu satırını seç (zaten seçiliyse detayı aç).
+    SelectTagPost(usize),
+    /// Aktör satırını seç.
+    SelectActor(usize),
+    /// Bildirim satırını seç.
+    SelectNotif(usize),
+    /// Kayıtlı içerik satırını seç (zaten seçiliyse aç).
+    SelectSave(usize),
 }
 
 /// (x, y) hücresine denk gelen aksiyonu bulur.
@@ -58,6 +68,24 @@ pub fn tab_bar_areas(
         x = x.saturating_add(w).saturating_add(2);
     }
     areas
+}
+
+/// Liste satırlarının tıklama alanları: çerçeveli listenin içi,
+/// satır başına bir hücre. `count` kadar (görünürle sınırlı) üretir.
+#[must_use]
+pub fn list_row_areas(list_area: Rect, count: usize) -> Vec<Rect> {
+    let visible = (list_area.height.saturating_sub(2)) as usize;
+    let top = list_area.y.saturating_add(1);
+    (0..count.min(visible))
+        .map(|i| {
+            Rect::new(
+                list_area.x.saturating_add(1),
+                top.saturating_add(i as u16),
+                list_area.width.saturating_sub(2),
+                1,
+            )
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -120,5 +148,17 @@ mod tests {
             hit_test(&actions, 16, 1),
             Some(MouseAction::SwitchTab(CurrentTab::Search))
         );
+    }
+
+    #[test]
+    fn test_list_row_areas_visible_window() {
+        // 10 satırlık alan: başlık+çerçeve düşer, 8 satır görünür.
+        let area = Rect::new(0, 0, 40, 10);
+        let rows = list_row_areas(area, 20);
+        assert_eq!(rows.len(), 8);
+        assert_eq!(rows[0], Rect::new(1, 1, 38, 1));
+        assert_eq!(rows[7], Rect::new(1, 8, 38, 1));
+        // Az öğe: öğe sayısı kadar.
+        assert_eq!(list_row_areas(area, 3).len(), 3);
     }
 }

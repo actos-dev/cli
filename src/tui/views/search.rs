@@ -6,6 +6,7 @@ use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
 use crate::tui::app::App;
 use crate::tui::mouse::MouseAction;
+use crate::tui::views::row_title;
 
 pub fn render_search(frame: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
@@ -56,21 +57,7 @@ pub fn render_search(frame: &mut Frame, app: &mut App, area: Rect) {
                 Style::default().fg(Color::White)
             };
 
-            let title_str = if post.content_type == "comment" {
-                // Yorumun başlığı olmaz: gövde özeti göster (web-lite kuralı).
-                let flat = post.body.split_whitespace().collect::<Vec<_>>().join(" ");
-                let cut: String = flat.chars().take(40).collect();
-                if flat.chars().count() > 40 {
-                    format!("{cut}…")
-                } else {
-                    cut
-                }
-            } else {
-                post.title
-                    .as_deref()
-                    .unwrap_or("(no title)")
-                    .to_string()
-            };
+            let title_str = row_title(post);
             let line = Line::from(vec![
                 Span::styled(prefix, Style::default().fg(Color::Yellow)),
                 Span::styled(format!("{:<40}", title_str), title_style),

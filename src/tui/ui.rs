@@ -6,18 +6,26 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::tui::app::{App, CurrentTab};
 use crate::tui::mouse::{self, MouseAction};
+use crate::tui::views::actors::render_actors;
 use crate::tui::views::detail::render_detail;
 use crate::tui::views::feed::render_feed;
 use crate::tui::views::help::{render_help, render_help_popup};
+use crate::tui::views::inbox::render_inbox;
 use crate::tui::views::profile::render_profile;
+use crate::tui::views::saves::render_saves;
 use crate::tui::views::search::render_search;
+use crate::tui::views::tags::{render_tag_posts, render_tags};
 
 /// Sekme tanımları: etiket + hedef ekran (sıralama çubuğu sırasıdır).
-const TAB_DEFS: [(&str, CurrentTab); 4] = [
-    (" [F1] Feed ", CurrentTab::Feed),
-    (" [F2] Search ", CurrentTab::Search),
-    (" [F3] Profile ", CurrentTab::Profile),
-    (" [F4] Help ", CurrentTab::Help),
+const TAB_DEFS: [(&str, CurrentTab); 8] = [
+    (" Feed ", CurrentTab::Feed),
+    (" Tags ", CurrentTab::Tags),
+    (" Actors ", CurrentTab::Actors),
+    (" Search ", CurrentTab::Search),
+    (" Inbox ", CurrentTab::Inbox),
+    (" Saves ", CurrentTab::Saves),
+    (" Profile ", CurrentTab::Profile),
+    (" Help ", CurrentTab::Help),
 ];
 
 pub fn render_ui(frame: &mut Frame, app: &mut App) {
@@ -34,9 +42,13 @@ pub fn render_ui(frame: &mut Frame, app: &mut App) {
     // Top Tabs (manuel çizilir ki tıklama alanları bilinsin)
     let selected_tab = match app.current_tab {
         CurrentTab::Feed | CurrentTab::Detail => 0,
-        CurrentTab::Search => 1,
-        CurrentTab::Profile => 2,
-        CurrentTab::Help => 3,
+        CurrentTab::Tags | CurrentTab::TagPosts => 1,
+        CurrentTab::Actors => 2,
+        CurrentTab::Search => 3,
+        CurrentTab::Inbox => 4,
+        CurrentTab::Saves => 5,
+        CurrentTab::Profile => 6,
+        CurrentTab::Help => 7,
     };
 
     let bar = Block::default().title(" Actos TUI ").borders(Borders::ALL);
@@ -63,8 +75,13 @@ pub fn render_ui(frame: &mut Frame, app: &mut App) {
     // Main content
     match app.current_tab {
         CurrentTab::Feed => render_feed(frame, app, main_layout[1]),
+        CurrentTab::Tags => render_tags(frame, app, main_layout[1]),
+        CurrentTab::TagPosts => render_tag_posts(frame, app, main_layout[1]),
+        CurrentTab::Actors => render_actors(frame, app, main_layout[1]),
         CurrentTab::Detail => render_detail(frame, app, main_layout[1]),
         CurrentTab::Search => render_search(frame, app, main_layout[1]),
+        CurrentTab::Inbox => render_inbox(frame, app, main_layout[1]),
+        CurrentTab::Saves => render_saves(frame, app, main_layout[1]),
         CurrentTab::Profile => render_profile(frame, app, main_layout[1]),
         CurrentTab::Help => render_help(frame, main_layout[1]),
     }

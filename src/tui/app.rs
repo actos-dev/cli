@@ -1,15 +1,23 @@
 use crate::client::ApiClient;
 use crate::tui::mouse::MouseAction;
 use actos_sdk::actos_types::actor::ActorProfileResponse;
+use actos_sdk::actos_types::auth::ActorSummary;
 use actos_sdk::actos_types::content::{CommentNodeResponse, ContentSummary};
+use actos_sdk::actos_types::notification::NotificationSummary;
+use actos_sdk::actos_types::tag::TagSummary;
 use ratatui::layout::Rect;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CurrentTab {
     Feed,
-    Detail,
+    Tags,
+    TagPosts,
+    Actors,
     Search,
+    Inbox,
+    Saves,
     Profile,
+    Detail,
     Help,
 }
 
@@ -115,6 +123,16 @@ pub struct App {
     pub feed_window: String,
     pub feed_actor_type: Option<String>,
     pub feed_following: bool,
+    pub tags: PagedList<TagSummary>,
+    pub tag_posts_name: String,
+    pub tag_posts_sort: String,
+    pub tag_posts: PagedList<ContentSummary>,
+    pub actors: PagedList<ActorSummary>,
+    pub actors_type: Option<String>,
+    pub inbox: PagedList<NotificationSummary>,
+    pub inbox_unread_only: bool,
+    pub inbox_unread_total: i64,
+    pub saves: PagedList<ContentSummary>,
     pub profile_info: Option<ActorProfileResponse>,
     pub status_message: String,
     pub show_help_popup: bool,
@@ -184,6 +202,16 @@ impl App {
             feed_window: "all".to_string(),
             feed_actor_type: None,
             feed_following: false,
+            tags: PagedList::default(),
+            tag_posts_name: String::new(),
+            tag_posts_sort: "new".to_string(),
+            tag_posts: PagedList::default(),
+            actors: PagedList::default(),
+            actors_type: None,
+            inbox: PagedList::default(),
+            inbox_unread_only: false,
+            inbox_unread_total: 0,
+            saves: PagedList::default(),
             profile_info: None,
             status_message: "Ready".to_string(),
             show_help_popup: false,
@@ -327,10 +355,400 @@ impl App {
         self.feed_following = !self.feed_following;
     }
 
-    pub async fn open_selected_post(&mut self, client: &ApiClient) {
-        let Some(post) = self.feed.selected_item().cloned() else {
+    // ---------- Tags ----------
+
+    pub async fn refresh_tags(&mut self, client: &ApiClient) {
+        self.status_message = "Loading tags...".to_string();
+        match client.paginate("/tags", &[], 25, None).await {
+            Ok((val, _rl)) => {
+                let next = val
+                    .get("next_cursor")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                if let Some(list) = val.get("tags")
+                    && let Ok(tags) =
+                        serde_json::from_value::<Vec<TagSummary>>(list.clone())
+                {
+                    let n = tags.len();
+                    self.tags.set_items(tags);
+                    self.tags.cursor = next;
+                    self.status_message = format!("Tags loaded ({n} tags)");
+                    return;
+                }
+                self.status_message = "Tags loaded (0 tags)".to_string();
+            }
+            Err(e) => self.status_message = format!("Error loading tags: {e}"),
+        }
+    }
+
+    pub async fn load_tags_older(&mut self, client: &ApiClient) {
+        let Some(cursor) = self.tags.cursor.clone() else {
+            self.status_message = "Already at the last page.".to_string();
             return;
         };
+        match client.paginate("/tags", &[], 25, Some(&cursor)).await {
+            Ok((val, _rl)) => {
+                let next = val
+                    .get("next_cursor")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                if let Some(list) = val.get("tags")
+                    && let Ok(tags) =
+                        serde_json::from_value::<Vec<TagSummary>>(list.clone())
+                {
+                    self.tags.items.extend(tags);
+                    self.tags.cursor = next;
+                    self.status_message = "Loaded more tags.".to_string();
+                }
+            }
+            Err(e) => self.status_message = format!("Error loading tags: {e}"),
+        }
+    }
+
+    pub async fn open_tag_posts(&mut self, client: &ApiClient) {
+        let Some(tag) = self.tags.selected_item() else {
+            return;
+        };
+        self.tag_posts_name = tag.name.clone();
+        self.tag_posts_sort = "new".to_string();
+        self.back_stack.push(self.current_tab);
+        self.current_tab = CurrentTab::TagPosts;
+        self.refresh_tag_posts(client).await;
+    }
+
+    pub async fn refresh_tag_posts(&mut self, client: &ApiClient) {
+        let name = self.tag_posts_name.clone();
+        let sort = self.tag_posts_sort.clone();
+        self.status_message = format!("Loading #{name}...");
+        let path = format!("/tags/{name}/posts");
+        let params = [("sort", sort.as_str())];
+        match client.paginate(&path, &params, 25, None).await {
+            Ok((val, _rl)) => {
+                let next = val
+                    .get("next_cursor")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                if let Some(list) = val.get("posts")
+                    && let Ok(posts) =
+                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                {
+                    let n = posts.len();
+                    self.tag_posts.set_items(posts);
+                    self.tag_posts.cursor = next;
+                    self.status_message = format!("#{name}: {n} posts");
+                    return;
+                }
+                self.status_message = format!("#{name}: no live posts.");
+            }
+            Err(e) => self.status_message = format!("Error loading tag: {e}"),
+        }
+    }
+
+    pub async fn load_tag_posts_older(&mut self, client: &ApiClient) {
+        let Some(cursor) = self.tag_posts.cursor.clone() else {
+            self.status_message = "Already at the last page.".to_string();
+            return;
+        };
+        let name = self.tag_posts_name.clone();
+        let sort = self.tag_posts_sort.clone();
+        let path = format!("/tags/{name}/posts");
+        let params = [("sort", sort.as_str())];
+        match client.paginate(&path, &params, 25, Some(&cursor)).await {
+            Ok((val, _rl)) => {
+                let next = val
+                    .get("next_cursor")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                if let Some(list) = val.get("posts")
+                    && let Ok(posts) =
+                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                {
+                    self.tag_posts.items.extend(posts);
+                    self.tag_posts.cursor = next;
+                    self.status_message = format!("Loaded more #{name} posts.");
+                }
+            }
+            Err(e) => self.status_message = format!("Error loading tag: {e}"),
+        }
+    }
+
+    pub fn cycle_tag_posts_sort(&mut self) {
+        self.tag_posts_sort = match self.tag_posts_sort.as_str() {
+            "new" => "top",
+            "top" => "hot",
+            _ => "new",
+        }
+        .to_string();
+    }
+
+    pub async fn open_selected_tag_post(&mut self, client: &ApiClient) {
+        let Some(post) = self.tag_posts.selected_item().cloned() else {
+            return;
+        };
+        self.open_post_detail(client, post).await;
+    }
+
+    // ---------- Actors ----------
+
+    pub async fn refresh_actors(&mut self, client: &ApiClient) {
+        self.status_message = "Loading actors...".to_string();
+        let actor_type = self.actors_type.clone();
+        let mut params: Vec<(&str, &str)> = vec![("sort", "new")];
+        if let Some(ref t) = actor_type {
+            params.push(("type", t.as_str()));
+        }
+        match client.paginate("/actors", &params, 25, None).await {
+            Ok((val, _rl)) => {
+                let next = val
+                    .get("next_cursor")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                if let Some(list) = val.get("actors")
+                    && let Ok(actors) =
+                        serde_json::from_value::<Vec<ActorSummary>>(list.clone())
+                {
+                    let n = actors.len();
+                    self.actors.set_items(actors);
+                    self.actors.cursor = next;
+                    self.status_message = format!("Actors loaded ({n})");
+                    return;
+                }
+                self.status_message = "Actors loaded (0).".to_string();
+            }
+            Err(e) => self.status_message = format!("Error loading actors: {e}"),
+        }
+    }
+
+    pub fn cycle_actors_type(&mut self) {
+        self.actors_type = match self.actors_type.as_deref() {
+            None => Some("human".to_string()),
+            Some("human") => Some("ai_agent".to_string()),
+            Some("ai_agent") => Some("system_bot".to_string()),
+            Some("system_bot") => Some("organization".to_string()),
+            _ => None,
+        };
+    }
+
+    // ---------- Inbox ----------
+
+    pub async fn refresh_inbox(&mut self, client: &ApiClient) {
+        if client.api_key().is_none() {
+            self.status_message =
+                "Inbox needs login. Run 'actos auth login' first.".to_string();
+            return;
+        }
+        self.status_message = "Loading inbox...".to_string();
+        let mut params: Vec<(&str, &str)> = Vec::new();
+        if self.inbox_unread_only {
+            params.push(("unread", "true"));
+        }
+        match client.paginate("/me/inbox", &params, 25, None).await {
+            Ok((val, _rl)) => {
+                let next = val
+                    .get("next_cursor")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                let total = val.get("unread_count").and_then(|v| v.as_i64()).unwrap_or(0);
+                self.inbox_unread_total = total;
+                if let Some(list) = val.get("notifications")
+                    && let Ok(items) =
+                        serde_json::from_value::<Vec<NotificationSummary>>(list.clone())
+                {
+                    let n = items.len();
+                    self.inbox.set_items(items);
+                    self.inbox.cursor = next;
+                    self.status_message = format!("Inbox ({total} unread total, {n} shown)");
+                    return;
+                }
+                self.status_message = "Inbox is empty.".to_string();
+            }
+            Err(e) => self.status_message = format!("Error loading inbox: {e}"),
+        }
+    }
+
+    pub async fn load_inbox_older(&mut self, client: &ApiClient) {
+        let Some(cursor) = self.inbox.cursor.clone() else {
+            self.status_message = "Already at the last page.".to_string();
+            return;
+        };
+        let mut params: Vec<(&str, &str)> = Vec::new();
+        if self.inbox_unread_only {
+            params.push(("unread", "true"));
+        }
+        match client.paginate("/me/inbox", &params, 25, Some(&cursor)).await {
+            Ok((val, _rl)) => {
+                let next = val
+                    .get("next_cursor")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                if let Some(list) = val.get("notifications")
+                    && let Ok(items) =
+                        serde_json::from_value::<Vec<NotificationSummary>>(list.clone())
+                {
+                    self.inbox.items.extend(items);
+                    self.inbox.cursor = next;
+                    self.status_message = "Loaded older notifications.".to_string();
+                }
+            }
+            Err(e) => self.status_message = format!("Error loading inbox: {e}"),
+        }
+    }
+
+    pub fn toggle_inbox_unread(&mut self) {
+        self.inbox_unread_only = !self.inbox_unread_only;
+    }
+
+    pub async fn mark_selected_read(&mut self, client: &ApiClient) {
+        let Some(notif) = self.inbox.selected_item() else {
+            return;
+        };
+        if notif.read_at.is_some() {
+            self.status_message = "Already read.".to_string();
+            return;
+        }
+        let id = notif.id.clone();
+        match client
+            .execute_request(
+                reqwest::Method::PATCH,
+                &format!("/me/inbox/{id}/read"),
+                None,
+                None,
+                None,
+            )
+            .await
+        {
+            Ok(_) => {
+                if let Some(item) = self.inbox.items.iter_mut().find(|n| n.id == id) {
+                    item.read_at = Some(String::new());
+                }
+                self.inbox_unread_total = self.inbox_unread_total.saturating_sub(1);
+                self.status_message = "Marked read.".to_string();
+            }
+            Err(e) => self.status_message = format!("Mark read failed: {e}"),
+        }
+    }
+
+    pub async fn mark_all_read(&mut self, client: &ApiClient) {
+        match client
+            .post_json("/me/inbox/read", &serde_json::json!({}), None)
+            .await
+        {
+            Ok((val, _)) => {
+                let marked = val.get("marked").and_then(|v| v.as_i64()).unwrap_or(0);
+                for item in self.inbox.items.iter_mut() {
+                    item.read_at = Some(String::new());
+                }
+                self.inbox_unread_total = 0;
+                self.status_message = format!("Marked {marked} notification(s) read.");
+            }
+            Err(e) => self.status_message = format!("Mark all failed: {e}"),
+        }
+    }
+
+    pub async fn open_selected_notification(&mut self, client: &ApiClient) {
+        let Some(notif) = self.inbox.selected_item() else {
+            return;
+        };
+        if notif.target_type != "content" {
+            self.status_message = "Actor notifications open in F5 (profiles).".to_string();
+            return;
+        }
+        let target = notif.target_id.clone();
+        self.open_content(client, &target).await;
+    }
+
+    // ---------- Saves ----------
+
+    pub async fn refresh_saves(&mut self, client: &ApiClient) {
+        if client.api_key().is_none() {
+            self.status_message =
+                "Saves need login. Run 'actos auth login' first.".to_string();
+            return;
+        }
+        self.status_message = "Loading saves...".to_string();
+        match client.paginate("/me/saves", &[], 25, None).await {
+            Ok((val, _rl)) => {
+                let next = val
+                    .get("next_cursor")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                if let Some(list) = val.get("saves")
+                    && let Ok(items) =
+                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                {
+                    let n = items.len();
+                    self.saves.set_items(items);
+                    self.saves.cursor = next;
+                    self.status_message = format!("Saves loaded ({n})");
+                    return;
+                }
+                self.status_message = "Nothing saved yet.".to_string();
+            }
+            Err(e) => self.status_message = format!("Error loading saves: {e}"),
+        }
+    }
+
+    pub async fn load_saves_older(&mut self, client: &ApiClient) {
+        let Some(cursor) = self.saves.cursor.clone() else {
+            self.status_message = "Already at the last page.".to_string();
+            return;
+        };
+        match client.paginate("/me/saves", &[], 25, Some(&cursor)).await {
+            Ok((val, _rl)) => {
+                let next = val
+                    .get("next_cursor")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                if let Some(list) = val.get("saves")
+                    && let Ok(items) =
+                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                {
+                    self.saves.items.extend(items);
+                    self.saves.cursor = next;
+                    self.status_message = "Loaded older saves.".to_string();
+                }
+            }
+            Err(e) => self.status_message = format!("Error loading saves: {e}"),
+        }
+    }
+
+    pub async fn open_selected_save(&mut self, client: &ApiClient) {
+        let Some(item) = self.saves.selected_item() else {
+            return;
+        };
+        let id = item.id.clone();
+        self.open_content(client, &id).await;
+    }
+
+    /// İçeriği türüne göre açar: post doğrudan, yorum ata zincirinden
+    /// kök post'a giderek (web-lite kuralı).
+    pub async fn open_content(&mut self, client: &ApiClient, id: &str) {
+        if let Ok((val, _)) = client.get_json(&format!("/posts/{id}"), None).await
+            && let Ok(post) = serde_json::from_value::<ContentSummary>(val)
+        {
+            self.open_post_detail(client, post).await;
+            return;
+        }
+        if let Ok((val, _)) = client.get_json(&format!("/comments/{id}"), None).await
+            && let Some(root) = val
+                .get("ancestors")
+                .and_then(|a| a.as_array())
+                .and_then(|a| a.first())
+            && let Some(root_id) = root.get("id").and_then(|v| v.as_str())
+        {
+            let root_id = root_id.to_string();
+            if let Ok((pval, _)) = client.get_json(&format!("/posts/{root_id}"), None).await
+                && let Ok(post) = serde_json::from_value::<ContentSummary>(pval)
+            {
+                self.open_post_detail(client, post).await;
+                return;
+            }
+        }
+        self.status_message = format!("Could not open {id} (deleted or missing).");
+    }
+
+    /// Seçili postu Detail yığınına açar (yorumlarla birlikte).
+    pub async fn open_post_detail(&mut self, client: &ApiClient, post: ContentSummary) {
         let post_id = post.id.clone();
         self.selected_post = Some(post);
         self.detail_scroll = 0;
@@ -360,6 +778,13 @@ impl App {
                 self.status_message = format!("Could not load comments: {e}");
             }
         }
+    }
+
+    pub async fn open_selected_post(&mut self, client: &ApiClient) {
+        let Some(post) = self.feed.selected_item().cloned() else {
+            return;
+        };
+        self.open_post_detail(client, post).await;
     }
 
     pub async fn perform_search(&mut self, client: &ApiClient) {
@@ -643,8 +1068,12 @@ impl App {
 
     pub fn next_tab(&mut self) {
         self.current_tab = match self.current_tab {
-            CurrentTab::Feed => CurrentTab::Search,
-            CurrentTab::Search => CurrentTab::Profile,
+            CurrentTab::Feed => CurrentTab::Tags,
+            CurrentTab::Tags | CurrentTab::TagPosts => CurrentTab::Actors,
+            CurrentTab::Actors => CurrentTab::Search,
+            CurrentTab::Search => CurrentTab::Inbox,
+            CurrentTab::Inbox => CurrentTab::Saves,
+            CurrentTab::Saves => CurrentTab::Profile,
             CurrentTab::Profile => CurrentTab::Help,
             CurrentTab::Help => CurrentTab::Feed,
             CurrentTab::Detail => CurrentTab::Feed,
@@ -654,8 +1083,12 @@ impl App {
     pub fn previous_tab(&mut self) {
         self.current_tab = match self.current_tab {
             CurrentTab::Feed => CurrentTab::Help,
-            CurrentTab::Search => CurrentTab::Feed,
-            CurrentTab::Profile => CurrentTab::Search,
+            CurrentTab::Tags | CurrentTab::TagPosts => CurrentTab::Feed,
+            CurrentTab::Actors => CurrentTab::Tags,
+            CurrentTab::Search => CurrentTab::Actors,
+            CurrentTab::Inbox => CurrentTab::Search,
+            CurrentTab::Saves => CurrentTab::Inbox,
+            CurrentTab::Profile => CurrentTab::Saves,
             CurrentTab::Help => CurrentTab::Profile,
             CurrentTab::Detail => CurrentTab::Feed,
         };
@@ -664,7 +1097,12 @@ impl App {
     pub fn move_up(&mut self) {
         match self.current_tab {
             CurrentTab::Feed => self.feed.move_up(),
+            CurrentTab::Tags => self.tags.move_up(),
+            CurrentTab::TagPosts => self.tag_posts.move_up(),
+            CurrentTab::Actors => self.actors.move_up(),
             CurrentTab::Search => self.search.move_up(),
+            CurrentTab::Inbox => self.inbox.move_up(),
+            CurrentTab::Saves => self.saves.move_up(),
             _ => {}
         }
     }
@@ -672,7 +1110,12 @@ impl App {
     pub fn move_down(&mut self) {
         match self.current_tab {
             CurrentTab::Feed => self.feed.move_down(),
+            CurrentTab::Tags => self.tags.move_down(),
+            CurrentTab::TagPosts => self.tag_posts.move_down(),
+            CurrentTab::Actors => self.actors.move_down(),
             CurrentTab::Search => self.search.move_down(),
+            CurrentTab::Inbox => self.inbox.move_down(),
+            CurrentTab::Saves => self.saves.move_down(),
             _ => {}
         }
     }
@@ -699,6 +1142,16 @@ mod tests {
             feed_window: "all".to_string(),
             feed_actor_type: None,
             feed_following: false,
+            tags: PagedList::default(),
+            tag_posts_name: String::new(),
+            tag_posts_sort: "new".to_string(),
+            tag_posts: PagedList::default(),
+            actors: PagedList::default(),
+            actors_type: None,
+            inbox: PagedList::default(),
+            inbox_unread_only: false,
+            inbox_unread_total: 0,
+            saves: PagedList::default(),
             profile_info: None,
             status_message: String::new(),
             show_help_popup: false,
@@ -899,5 +1352,71 @@ mod tests {
         app.submit_overlay(&client).await;
         assert!(app.overlay.is_some());
         assert!(app.status_message.contains("empty"));
+    }
+
+    #[tokio::test]
+    async fn test_refresh_tags_parses_mock() {
+        let server = wiremock::MockServer::start().await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path("/tags"))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({
+                    "tags": [
+                        {"name": "rust", "post_count": 12,
+                         "created_at": "2026-01-01T00:00:00Z"}
+                    ],
+                    "next_cursor": null
+                }),
+            ))
+            .mount(&server)
+            .await;
+        let client = crate::client::ApiClient::new(
+            server.uri(),
+            None,
+            30,
+            false,
+            false,
+        )
+        .expect("mock client builds");
+        let mut app = test_app();
+        app.refresh_tags(&client).await;
+        assert_eq!(app.tags.items.len(), 1);
+        assert_eq!(app.tags.items[0].name, "rust");
+        assert_eq!(app.tags.cursor, None);
+    }
+
+    #[tokio::test]
+    async fn test_refresh_inbox_parses_mock() {
+        let server = wiremock::MockServer::start().await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path("/me/inbox"))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({
+                    "notifications": [
+                        {"id": "n_1", "kind": "comment_on_post",
+                         "actor": null, "target_type": "content",
+                         "target_id": "c_9", "payload": {},
+                         "created_at": "2026-01-01T00:00:00Z",
+                         "read_at": null}
+                    ],
+                    "next_cursor": null,
+                    "unread_count": 7
+                }),
+            ))
+            .mount(&server)
+            .await;
+        let client = crate::client::ApiClient::new(
+            server.uri(),
+            Some("actos_test".to_string()),
+            30,
+            false,
+            false,
+        )
+        .expect("mock client builds");
+        let mut app = test_app();
+        app.refresh_inbox(&client).await;
+        assert_eq!(app.inbox.items.len(), 1);
+        assert_eq!(app.inbox_unread_total, 7);
+        assert!(app.inbox.items[0].read_at.is_none());
     }
 }

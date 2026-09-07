@@ -71,7 +71,7 @@ async fn handle_mouse(
             match mouse::hit_test(&app.hit_areas, m.column, m.row) {
                 Some(mouse::MouseAction::SwitchTab(tab)) => {
                     if tab != app::CurrentTab::Detail {
-                        app.current_tab = tab;
+                        enter_tab(app, client, tab).await;
                     }
                 }
                 Some(mouse::MouseAction::SelectFeed(i)) => {
@@ -83,6 +83,33 @@ async fn handle_mouse(
                 }
                 Some(mouse::MouseAction::SelectSearch(i)) => {
                     app.search.selected = i;
+                }
+                Some(mouse::MouseAction::SelectTag(i)) => {
+                    if app.tags.selected == i {
+                        app.open_tag_posts(client).await;
+                    } else {
+                        app.tags.selected = i;
+                    }
+                }
+                Some(mouse::MouseAction::SelectTagPost(i)) => {
+                    if app.tag_posts.selected == i {
+                        app.open_selected_tag_post(client).await;
+                    } else {
+                        app.tag_posts.selected = i;
+                    }
+                }
+                Some(mouse::MouseAction::SelectActor(i)) => {
+                    app.actors.selected = i;
+                }
+                Some(mouse::MouseAction::SelectNotif(i)) => {
+                    app.inbox.selected = i;
+                }
+                Some(mouse::MouseAction::SelectSave(i)) => {
+                    if app.saves.selected == i {
+                        app.open_selected_save(client).await;
+                    } else {
+                        app.saves.selected = i;
+                    }
                 }
                 None => {}
             }
@@ -100,6 +127,27 @@ async fn handle_mouse(
             } else {
                 app.move_down();
             }
+        }
+        _ => {}
+    }
+}
+
+/// Sekmeye geç + ilk girişte tembel yükle (boşsa).
+#[cfg(feature = "tui")]
+async fn enter_tab(app: &mut app::App, client: &ApiClient, tab: app::CurrentTab) {
+    app.current_tab = tab;
+    match tab {
+        app::CurrentTab::Tags if app.tags.items.is_empty() => {
+            app.refresh_tags(client).await;
+        }
+        app::CurrentTab::Actors if app.actors.items.is_empty() => {
+            app.refresh_actors(client).await;
+        }
+        app::CurrentTab::Inbox if app.inbox.items.is_empty() => {
+            app.refresh_inbox(client).await;
+        }
+        app::CurrentTab::Saves if app.saves.items.is_empty() => {
+            app.refresh_saves(client).await;
         }
         _ => {}
     }
@@ -233,11 +281,6 @@ async fn run_loop(
                 KeyCode::Char('r') if app.current_tab == app::CurrentTab::Feed => {
                     app.refresh_feed(client).await;
                 }
-                KeyCode::Char('o') | KeyCode::Right
-                    if app.current_tab == app::CurrentTab::Feed =>
-                {
-                    app.load_older(client).await;
-                }
                 KeyCode::Char('s') if app.current_tab == app::CurrentTab::Feed => {
                     app.cycle_feed_sort();
                     app.refresh_feed(client).await;
@@ -254,18 +297,53 @@ async fn run_loop(
                     app.toggle_feed_following();
                     app.refresh_feed(client).await;
                 }
-                // B3: sekme başlıklarında yazan F1-F4 gerçekten çalışır.
+                KeyCode::Char('t') if app.current_tab == app::CurrentTab::Actors => {
+                    app.cycle_actors_type();
+                    app.refresh_actors(client).await;
+                }
+                KeyCode::Char('s') if app.current_tab == app::CurrentTab::TagPosts => {
+                    app.cycle_tag_posts_sort();
+                    app.refresh_tag_posts(client).await;
+                }
+                KeyCode::Char('o') | KeyCode::Right
+                    if app.current_tab == app::CurrentTab::TagPosts =>
+                {
+                    app.load_tag_posts_older(client).await;
+                }
+                KeyCode::Char('u') if app.current_tab == app::CurrentTab::Inbox => {
+                    app.toggle_inbox_unread();
+                    app.refresh_inbox(client).await;
+                }
+                KeyCode::Char('R') if app.current_tab == app::CurrentTab::Inbox => {
+                    app.mark_selected_read(client).await;
+                }
+                KeyCode::Char('A') if app.current_tab == app::CurrentTab::Inbox => {
+                    app.mark_all_read(client).await;
+                }
+                // B3: sekme başlıklarında yazan F1-F8 gerçekten çalışır.
                 KeyCode::F(1) => {
-                    app.current_tab = app::CurrentTab::Feed;
+                    enter_tab(app, client, app::CurrentTab::Feed).await;
                 }
                 KeyCode::F(2) => {
-                    app.current_tab = app::CurrentTab::Search;
+                    enter_tab(app, client, app::CurrentTab::Search).await;
                 }
                 KeyCode::F(3) => {
-                    app.current_tab = app::CurrentTab::Profile;
+                    enter_tab(app, client, app::CurrentTab::Profile).await;
                 }
                 KeyCode::F(4) => {
-                    app.current_tab = app::CurrentTab::Help;
+                    enter_tab(app, client, app::CurrentTab::Help).await;
+                }
+                KeyCode::F(5) => {
+                    enter_tab(app, client, app::CurrentTab::Tags).await;
+                }
+                KeyCode::F(6) => {
+                    enter_tab(app, client, app::CurrentTab::Actors).await;
+                }
+                KeyCode::F(7) => {
+                    enter_tab(app, client, app::CurrentTab::Inbox).await;
+                }
+                KeyCode::F(8) => {
+                    enter_tab(app, client, app::CurrentTab::Saves).await;
                 }
                 KeyCode::Char('t')
                     if app.current_tab == app::CurrentTab::Search
@@ -279,8 +357,43 @@ async fn run_loop(
                     app::CurrentTab::Feed => {
                         app.open_selected_post(client).await;
                     }
+                    app::CurrentTab::Tags => {
+                        app.open_tag_posts(client).await;
+                    }
+                    app::CurrentTab::TagPosts => {
+                        app.open_selected_tag_post(client).await;
+                    }
+                    app::CurrentTab::Actors => {
+                        app.status_message =
+                            "Actor profiles open from F5 (coming in the Profile phase)."
+                                .to_string();
+                    }
                     app::CurrentTab::Search => {
                         app.perform_search(client).await;
+                    }
+                    app::CurrentTab::Inbox => {
+                        app.open_selected_notification(client).await;
+                    }
+                    app::CurrentTab::Saves => {
+                        app.open_selected_save(client).await;
+                    }
+                    _ => {}
+                },
+                KeyCode::Char('o') | KeyCode::Right => match app.current_tab {
+                    app::CurrentTab::Feed => {
+                        app.load_older(client).await;
+                    }
+                    app::CurrentTab::Tags => {
+                        app.load_tags_older(client).await;
+                    }
+                    app::CurrentTab::TagPosts => {
+                        app.load_tag_posts_older(client).await;
+                    }
+                    app::CurrentTab::Inbox => {
+                        app.load_inbox_older(client).await;
+                    }
+                    app::CurrentTab::Saves => {
+                        app.load_saves_older(client).await;
                     }
                     _ => {}
                 },
