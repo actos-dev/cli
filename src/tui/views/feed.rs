@@ -54,7 +54,24 @@ pub fn render_feed(frame: &mut Frame, app: &mut App, area: Rect) {
 
     let list = List::new(items).block(
         Block::default()
-            .title(" Feed (Public Stream) ")
+            .title(format!(
+                " {} Feed [{}]{}{} ",
+                if app.feed_following {
+                    "Following"
+                } else {
+                    "Feed (Public Stream)"
+                },
+                app.feed_sort,
+                if app.feed_sort == "top" {
+                    format!("/{}", app.feed_window)
+                } else {
+                    String::new()
+                },
+                app.feed_actor_type
+                    .as_deref()
+                    .map(|a| format!(" @{a}"))
+                    .unwrap_or_default(),
+            ))
             .borders(Borders::ALL),
     );
 

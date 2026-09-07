@@ -146,6 +146,30 @@ async fn run_loop(
                 KeyCode::Char('k') | KeyCode::Up => {
                     app.move_up();
                 }
+                KeyCode::Char('r') if app.current_tab == app::CurrentTab::Feed => {
+                    app.refresh_feed(client).await;
+                }
+                KeyCode::Char('o') | KeyCode::Right
+                    if app.current_tab == app::CurrentTab::Feed =>
+                {
+                    app.load_older(client).await;
+                }
+                KeyCode::Char('s') if app.current_tab == app::CurrentTab::Feed => {
+                    app.cycle_feed_sort();
+                    app.refresh_feed(client).await;
+                }
+                KeyCode::Char('w') if app.current_tab == app::CurrentTab::Feed => {
+                    app.cycle_feed_window();
+                    app.refresh_feed(client).await;
+                }
+                KeyCode::Char('a') if app.current_tab == app::CurrentTab::Feed => {
+                    app.cycle_feed_actor();
+                    app.refresh_feed(client).await;
+                }
+                KeyCode::Char('f') if app.current_tab == app::CurrentTab::Feed => {
+                    app.toggle_feed_following();
+                    app.refresh_feed(client).await;
+                }
                 // B3: sekme başlıklarında yazan F1-F4 gerçekten çalışır.
                 KeyCode::F(1) => {
                     app.current_tab = app::CurrentTab::Feed;

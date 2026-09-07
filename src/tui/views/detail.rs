@@ -62,7 +62,10 @@ pub fn render_detail(frame: &mut Frame, app: &App, area: Rect) {
                 Span::raw(format!(" | Created: {}", post.created_at)),
             ]),
             Line::from(""),
-            Line::from(post.body.clone()),
+            Line::from(crate::tui::app::strip_leading_title(
+                &post.body,
+                post.title.as_deref(),
+            )),
         ];
 
         let post_widget = Paragraph::new(post_text)
