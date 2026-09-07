@@ -33,7 +33,7 @@ fn build_comment_lines(node: &CommentNodeResponse, depth: usize, out: &mut Vec<L
     }
 }
 
-pub fn render_detail(frame: &mut Frame, app: &App, area: Rect) {
+pub fn render_detail(frame: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
@@ -68,13 +68,15 @@ pub fn render_detail(frame: &mut Frame, app: &App, area: Rect) {
             )),
         ];
 
+        let post_len = post_text.len();
         let post_widget = Paragraph::new(post_text)
             .block(
                 Block::default()
-                    .title(" Post Details ")
+                    .title(" Post Details (+/- vote, S/X save, r reply, R report, D delete) ")
                     .borders(Borders::ALL),
             )
-            .wrap(Wrap { trim: true });
+            .wrap(Wrap { trim: true })
+            .scroll((app.detail_scroll.min(app.detail_lines), 0));
 
         frame.render_widget(post_widget, chunks[0]);
 
@@ -86,10 +88,12 @@ pub fn render_detail(frame: &mut Frame, app: &App, area: Rect) {
                 build_comment_lines(comment, 0, &mut comment_lines);
             }
         }
+        app.detail_lines = (post_len + comment_lines.len()) as u16;
 
         let comments_widget = Paragraph::new(comment_lines)
             .block(Block::default().title(" Comments ").borders(Borders::ALL))
-            .wrap(Wrap { trim: false });
+            .wrap(Wrap { trim: false })
+            .scroll((app.detail_scroll.min(app.detail_lines), 0));
 
         frame.render_widget(comments_widget, chunks[1]);
     } else {

@@ -85,8 +85,72 @@ pub fn render_ui(frame: &mut Frame, app: &mut App) {
     let status_widget = Paragraph::new(status_line);
     frame.render_widget(status_widget, main_layout[2]);
 
-    // Popup
+    // Popup'lar: yardım ve giriş overlay'leri en üstte.
     if app.show_help_popup {
         render_help_popup(frame, frame.area());
+    } else if let Some(overlay) = app.overlay.clone() {
+        render_overlay(frame, frame.area(), &overlay);
+    }
+}
+
+/// Ekranı ortalayan küçük kutu alanı hesaplar (yüzde cinsinden).
+fn centered_rect(percent_x: u16, percent_y: u16, area: ratatui::layout::Rect) -> ratatui::layout::Rect {
+    let vertical = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(area);
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(vertical[1])[1]
+}
+
+fn render_overlay(
+    frame: &mut Frame,
+    area: ratatui::layout::Rect,
+    overlay: &crate::tui::app::Overlay,
+) {
+    use crate::tui::app::Overlay as O;
+    let popup = centered_rect(70, 40, area);
+    let block = Block::default()
+        .title(overlay.title())
+        .borders(Borders::ALL)
+        .style(Style::default().bg(Color::Black));
+    let inner = block.inner(popup);
+    frame.render_widget(ratatui::widgets::Clear, popup);
+    frame.render_widget(block, popup);
+    match overlay {
+        O::ConfirmDeletePost { post_id } => {
+            let text = Paragraph::new(vec![
+                Line::from(format!("Delete post {post_id}? This is permanent.")),
+                Line::from(""),
+                Line::from(Span::styled(
+                    "Enter: delete   Esc: cancel",
+                    Style::default().fg(Color::Yellow),
+                )),
+            ]);
+            frame.render_widget(text, inner);
+        }
+        _ => {
+            let content = overlay.text().unwrap_or_default();
+            let text = Paragraph::new(vec![
+                Line::from(format!("{content}█")),
+                Line::from(""),
+                Line::from(Span::styled(
+                    "Enter: send   Esc: cancel",
+                    Style::default().fg(Color::DarkGray),
+                )),
+            ])
+            .wrap(ratatui::widgets::Wrap { trim: false });
+            frame.render_widget(text, inner);
+        }
     }
 }

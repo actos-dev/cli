@@ -87,8 +87,20 @@ async fn handle_mouse(
                 None => {}
             }
         }
-        MouseEventKind::ScrollUp => app.move_up(),
-        MouseEventKind::ScrollDown => app.move_down(),
+        MouseEventKind::ScrollUp => {
+            if app.current_tab == app::CurrentTab::Detail {
+                app.scroll_detail_by(-3);
+            } else {
+                app.move_up();
+            }
+        }
+        MouseEventKind::ScrollDown => {
+            if app.current_tab == app::CurrentTab::Detail {
+                app.scroll_detail_by(3);
+            } else {
+                app.move_down();
+            }
+        }
         _ => {}
     }
 }
@@ -120,6 +132,30 @@ async fn run_loop(
                 continue;
             }
 
+            // Overlay açıkken tuşlar giriş kutusuna gider.
+            if app.overlay.is_some() {
+                match key.code {
+                    KeyCode::Esc => {
+                        app.overlay = None;
+                    }
+                    KeyCode::Enter => {
+                        app.submit_overlay(client).await;
+                    }
+                    KeyCode::Backspace => {
+                        if let Some(o) = app.overlay.as_mut() {
+                            o.pop_char();
+                        }
+                    }
+                    KeyCode::Char(c) => {
+                        if let Some(o) = app.overlay.as_mut() {
+                            o.push_char(c);
+                        }
+                    }
+                    _ => {}
+                }
+                continue;
+            }
+
             match key.code {
                 // B4: arama kutusunda `q` harftir, çıkış değil.
                 KeyCode::Char('q') if app.current_tab != app::CurrentTab::Search => {
@@ -141,10 +177,58 @@ async fn run_loop(
                     app.go_back();
                 }
                 KeyCode::Char('j') | KeyCode::Down => {
-                    app.move_down();
+                    if app.current_tab == app::CurrentTab::Detail {
+                        app.scroll_detail_by(1);
+                    } else {
+                        app.move_down();
+                    }
                 }
                 KeyCode::Char('k') | KeyCode::Up => {
-                    app.move_up();
+                    if app.current_tab == app::CurrentTab::Detail {
+                        app.scroll_detail_by(-1);
+                    } else {
+                        app.move_up();
+                    }
+                }
+                KeyCode::PageDown if app.current_tab == app::CurrentTab::Detail => {
+                    app.scroll_detail_by(10);
+                }
+                KeyCode::PageUp if app.current_tab == app::CurrentTab::Detail => {
+                    app.scroll_detail_by(-10);
+                }
+                KeyCode::Home if app.current_tab == app::CurrentTab::Detail => {
+                    app.detail_scroll = 0;
+                }
+                KeyCode::End if app.current_tab == app::CurrentTab::Detail => {
+                    app.detail_scroll = app.detail_lines;
+                }
+                KeyCode::Char('+') | KeyCode::Char('=') => {
+                    if app.current_tab == app::CurrentTab::Detail {
+                        app.vote_current(client, 1).await;
+                    }
+                }
+                KeyCode::Char('-') | KeyCode::Char('_') => {
+                    if app.current_tab == app::CurrentTab::Detail {
+                        app.vote_current(client, -1).await;
+                    }
+                }
+                KeyCode::Char('0') if app.current_tab == app::CurrentTab::Detail => {
+                    app.vote_current(client, 0).await;
+                }
+                KeyCode::Char('S') if app.current_tab == app::CurrentTab::Detail => {
+                    app.save_current(client, true).await;
+                }
+                KeyCode::Char('X') if app.current_tab == app::CurrentTab::Detail => {
+                    app.save_current(client, false).await;
+                }
+                KeyCode::Char('r') if app.current_tab == app::CurrentTab::Detail => {
+                    app.open_overlay_reply(client);
+                }
+                KeyCode::Char('R') if app.current_tab == app::CurrentTab::Detail => {
+                    app.open_overlay_report(client);
+                }
+                KeyCode::Char('D') if app.current_tab == app::CurrentTab::Detail => {
+                    app.open_confirm_delete(client);
                 }
                 KeyCode::Char('r') if app.current_tab == app::CurrentTab::Feed => {
                     app.refresh_feed(client).await;
