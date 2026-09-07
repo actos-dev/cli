@@ -90,6 +90,8 @@ impl Cli {
 pub enum Commands {
     /// Profile and configuration management
     Config(ConfigArgs),
+    /// Switch the active account or list accounts
+    User(UserArgs),
     /// Authentication and API key management
     Auth(AuthArgs),
     /// Post operations
@@ -140,6 +142,12 @@ pub enum Commands {
 pub struct ConfigArgs {
     #[command(subcommand)]
     pub action: ConfigAction,
+}
+
+#[derive(Args, Debug)]
+pub struct UserArgs {
+    /// Account (profile) name to switch to. If omitted, accounts are listed.
+    pub name: Option<String>,
 }
 
 #[derive(Subcommand, Debug)]

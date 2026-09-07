@@ -7,7 +7,7 @@ use actos::commands::api::handle_api;
 use actos::commands::auth::handle_auth;
 use actos::commands::comment::handle_comment;
 use actos::commands::completion::handle_completion;
-use actos::commands::config::handle_config;
+use actos::commands::config::{handle_config, handle_user};
 use actos::commands::feed::handle_feed;
 use actos::commands::help::handle_help;
 use actos::commands::inbox::handle_inbox;
@@ -37,6 +37,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
 
     match cli.command {
         Commands::Config(args) => handle_config(args.action, profile.as_deref(), json),
+        Commands::User(args) => handle_user(args.name.as_deref(), json),
         Commands::Auth(args) => {
             let target_profile = profile
                 .as_deref()

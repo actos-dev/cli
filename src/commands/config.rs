@@ -3,6 +3,102 @@ use crate::config::Config;
 use crate::error::CliError;
 use comfy_table::{Table, presets::UTF8_FULL};
 
+/// `actos user` — aktif hesabı listeler/değiştirir (SIKAYETLER #10).
+///
+/// İsimsiz çağrı hesapları listeler (anahtar göstermez, ağa çıkmaz);
+/// isimli çağrı `default_profile`'ı değiştirir. Kim kiminle konuşuyor
+/// her zaman açıkça basılır.
+pub fn handle_user(name: Option<&str>, is_json: bool) -> Result<(), CliError> {
+    let mut config = Config::load()?;
+
+    match name {
+        None => {
+            if is_json {
+                let profiles: Vec<serde_json::Value> = config
+                    .profiles
+                    .iter()
+                    .map(|(pname, prof)| {
+                        serde_json::json!({
+                            "name": pname,
+                            "username": prof.username,
+                            "actor_type": prof.actor_type,
+                            "active": pname == &config.default_profile,
+                        })
+                    })
+                    .collect();
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "default_profile": config.default_profile,
+                        "profiles": profiles,
+                    }))
+                    .unwrap_or_default()
+                );
+            } else {
+                let mut table = Table::new();
+                table.load_preset(UTF8_FULL);
+                table.set_header(vec!["Account", "Username", "Actor Type"]);
+
+                for (pname, prof) in &config.profiles {
+                    let display = if pname == &config.default_profile {
+                        format!("{pname} *")
+                    } else {
+                        pname.clone()
+                    };
+                    table.add_row(vec![
+                        display,
+                        prof.username.as_deref().unwrap_or("(no identity)").to_string(),
+                        prof.actor_type.as_deref().unwrap_or("-").to_string(),
+                    ]);
+                }
+
+                println!("{table}");
+                println!("\nActive account: '{}'.", config.default_profile);
+                println!("Switch with: actos user <account>");
+            }
+        }
+        Some(target) => {
+            if !config.profiles.contains_key(target) {
+                let mut known: Vec<&String> = config.profiles.keys().collect();
+                known.sort();
+                let known = known
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                return Err(CliError::NotFound(format!(
+                    "Account '{target}' not found. Known accounts: {known}"
+                )));
+            }
+            config.default_profile = target.to_string();
+            config.save()?;
+
+            let who = config
+                .profiles
+                .get(target)
+                .and_then(|p| p.username.clone())
+                .map(|u| format!("@{u}"))
+                .unwrap_or_else(|| "(no identity saved yet)".to_string());
+            if is_json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "status": "switched",
+                        "active": target,
+                        "username": who,
+                    }))
+                    .unwrap_or_default()
+                );
+            } else {
+                println!("Active account: '{target}' ({who}).");
+                println!("Subsequent commands run as this identity.");
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// `actos config` alt komutlarını çalıştırır.
 pub fn handle_config(
     action: ConfigAction,
