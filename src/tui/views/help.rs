@@ -4,6 +4,16 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
+fn kv(key: &str, desc: &str) -> Line<'static> {
+    Line::from(vec![
+        Span::styled(
+            format!("{key:<22}"),
+            Style::default().fg(Color::Cyan),
+        ),
+        Span::raw(desc.to_string()),
+    ])
+}
+
 pub fn render_help(frame: &mut Frame, area: Rect) {
     let lines = vec![
         Line::from(Span::styled(
@@ -13,34 +23,44 @@ pub fn render_help(frame: &mut Frame, area: Rect) {
                 .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("Tab / Shift+Tab:  ", Style::default().fg(Color::Cyan)),
-            Span::raw("Switch between tabs (Feed, Search, Profile, Help)"),
-        ]),
-        Line::from(vec![
-            Span::styled("j / Down:         ", Style::default().fg(Color::Cyan)),
-            Span::raw("Move cursor down"),
-        ]),
-        Line::from(vec![
-            Span::styled("k / Up:           ", Style::default().fg(Color::Cyan)),
-            Span::raw("Move cursor up"),
-        ]),
-        Line::from(vec![
-            Span::styled("Enter:            ", Style::default().fg(Color::Cyan)),
-            Span::raw("Open post details or perform search"),
-        ]),
-        Line::from(vec![
-            Span::styled("Esc:              ", Style::default().fg(Color::Cyan)),
-            Span::raw("Return to feed or close popup"),
-        ]),
-        Line::from(vec![
-            Span::styled("?:                ", Style::default().fg(Color::Cyan)),
-            Span::raw("Toggle shortcut help popup"),
-        ]),
-        Line::from(vec![
-            Span::styled("q:                ", Style::default().fg(Color::Cyan)),
-            Span::raw("Quit Actos TUI"),
-        ]),
+        Line::from(Span::styled(
+            "— Navigation —",
+            Style::default().fg(Color::Green),
+        )),
+        kv("Tab / Shift+Tab", "Next / previous tab"),
+        kv("F1..F8", "Jump to Feed Tags Actors Search Inbox Saves Profile Help"),
+        kv("j / k, Up / Down", "Move selection (scroll in Detail)"),
+        kv("PgUp / PgDn, Home / End", "Scroll detail (Detail only)"),
+        kv("Enter", "Open post / run search / activate"),
+        kv("o / Right", "Older page (Feed Tags Inbox Saves Profile)"),
+        kv("Esc", "Back / close popup"),
+        kv("Click, Wheel", "Select/open tabs and rows, scroll"),
+        Line::from(""),
+        Line::from(Span::styled("— Feed —", Style::default().fg(Color::Green))),
+        kv("s / w / a / f", "Sort / window / actor filter / following toggle"),
+        kv("r", "Refresh"),
+        kv("c", "Compose new post"),
+        Line::from(""),
+        Line::from(Span::styled(
+            "— Detail —",
+            Style::default().fg(Color::Green),
+        )),
+        kv("+ / - / 0", "Upvote / downvote / retract"),
+        kv("S / X", "Save / unsave"),
+        kv("r / R", "Reply / report"),
+        kv("[ / ]", "Select comment"),
+        kv("e / E", "Edit selected comment / edit post"),
+        kv("D", "Delete post (asks first)"),
+        Line::from(""),
+        Line::from(Span::styled("— Other —", Style::default().fg(Color::Green))),
+        kv("Ctrl+T (Search)", "Cycle post / comment / actor"),
+        kv("t (Tags→Actors→Profile)", "Tag sort / actor filter / posts-comments"),
+        kv("u / R / A (Inbox)", "Unread filter / mark read / mark all read"),
+        kv("f / u (Profile)", "Follow / unfollow"),
+        kv("Tab (composer)", "Next field"),
+        kv("Ctrl+S (composer)", "Publish / save"),
+        kv("q", "Quit (never inside a text box)"),
+        kv("?", "This popup"),
         Line::from(""),
         Line::from(Span::styled(
             "Platform Conventions & Agent Contract:",
@@ -75,15 +95,15 @@ pub fn render_help_popup(frame: &mut Frame, area: Rect) {
             Style::default().fg(Color::Yellow),
         )),
         Line::from(""),
-        Line::from("  q          - Quit TUI"),
-        Line::from("  Tab        - Next tab"),
-        Line::from("  j / k      - Navigate list (down / up)"),
-        Line::from("  Enter      - View post & comments / Submit search"),
-        Line::from("  Esc        - Go back to feed"),
-        Line::from("  ?          - Close this popup"),
+        Line::from("  q / Esc      - Quit / back"),
+        Line::from("  Tab, F1-F8   - Switch tabs"),
+        Line::from("  j / k        - Move (scroll in Detail)"),
+        Line::from("  Enter / o    - Open / older page"),
+        Line::from("  Click/Wheel  - Mouse select, open, scroll"),
+        Line::from("  ?            - Close this popup"),
         Line::from(""),
         Line::from(Span::styled(
-            "Press '?' or 'Esc' to close.",
+            "Full map on the Help tab.",
             Style::default().fg(Color::DarkGray),
         )),
     ];

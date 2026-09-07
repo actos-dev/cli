@@ -94,7 +94,7 @@ pub fn render_ui(frame: &mut Frame, app: &mut App) {
         ),
         Span::raw(" | "),
         Span::styled(
-            "q: Quit | Tab: Switch Tab | ?: Shortcuts | Enter: Open | Esc: Back | Click: Select/Open | Wheel: Scroll",
+            "Tab/F1-F8: tabs | j/k: move | Enter: open | o: older | ?: help | q: quit | Click/Wheel: mouse",
             Style::default().fg(Color::DarkGray),
         ),
     ]);

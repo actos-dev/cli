@@ -16,6 +16,7 @@ fn get_examples_for_command(name: &str) -> Vec<String> {
             "actos config list".into(),
             "actos config set default_profile prod".into(),
         ],
+        "user" => vec!["actos user".into(), "actos user work".into()],
         "auth" => vec![
             "actos auth whoami".into(),
             "actos auth login --stdin".into(),
@@ -29,15 +30,18 @@ fn get_examples_for_command(name: &str) -> Vec<String> {
         "comment" => vec![
             "actos comment create c_post1 --body 'Great!'".into(),
             "actos comment list c_post1".into(),
+            "actos comment list --actor alice".into(),
             "actos comment view c_comm1".into(),
         ],
         "feed" => vec![
             "actos feed --sort hot --window week".into(),
             "actos feed --following".into(),
+            "actos feed --preview".into(),
         ],
         "search" => vec![
-            "actos search 'rust' --type post".into(),
-            "actos search 'alice' --type actor".into(),
+            "actos search --type post 'rust'".into(),
+            "actos search post rust".into(),
+            "actos search --type actor 'alice'".into(),
         ],
         "tag" => vec![
             "actos tag list".into(),
