@@ -1,12 +1,65 @@
 use comfy_table::{Table, presets::UTF8_FULL};
 use serde_json::json;
 use std::io::Read;
+use std::path::{Path, PathBuf};
 
 use crate::cli::{AuthAction, KeysAction, RecoveryAction};
 use crate::client::ApiClient;
 use crate::config::Config;
 use crate::error::CliError;
 use crate::output::OutputContext;
+
+/// Recovery kodlarını 0600 izinli bir dosyaya yazar (SIKAYETLER #4).
+///
+/// Yalnızca `--save` ile çağrılır. API anahtarı dosyaya yazılmaz
+/// (o zaten profilde durur); dosya kurtarma kodlarını taşır.
+pub fn save_recovery_codes_to(
+    dir: &Path,
+    profile: &str,
+    username: &str,
+    codes: &[String],
+) -> Result<PathBuf, CliError> {
+    if !dir.exists() {
+        std::fs::create_dir_all(dir).map_err(|e| {
+            CliError::Io(format!(
+                "Failed to create directory '{}': {e}",
+                dir.display()
+            ))
+        })?;
+    }
+    let path = dir.join(format!("recovery-{profile}.txt"));
+    let mut content = format!(
+        "Actos recovery codes for '{username}' (profile '{profile}')\nEach code works ONCE; regenerating codes invalidates this file.\n\n"
+    );
+    for (i, code) in codes.iter().enumerate() {
+        content.push_str(&format!("{:2}. {code}\n", i + 1));
+    }
+
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create(true).truncate(true);
+        options.mode(0o600);
+        let mut file = options.open(&path).map_err(|e| {
+            CliError::Io(format!("Failed to open '{}': {e}", path.display()))
+        })?;
+        file.write_all(content.as_bytes()).map_err(|e| {
+            CliError::Io(format!("Failed to write '{}': {e}", path.display()))
+        })?;
+        let _ = crate::config::permissions::ensure_0600_permissions(&path);
+    }
+
+    #[cfg(not(unix))]
+    {
+        std::fs::write(&path, content).map_err(|e| {
+            CliError::Io(format!("Failed to write '{}': {e}", path.display()))
+        })?;
+    }
+
+    Ok(path)
+}
 
 pub async fn handle_auth(
     action: AuthAction,
@@ -30,11 +83,24 @@ pub async fn handle_auth(
             let res = builder.send().await.map_err(CliError::from)?;
             let rl = client.rate_limit_info().unwrap_or_default();
 
+            let mut recovery_file_msg: Option<String> = None;
             if save {
                 let _ = config.set(target_profile, "api_key", &res.api_key);
                 let _ = config.set(target_profile, "username", &res.actor.username);
                 let _ = config.set(target_profile, "actor_type", &res.actor.actor_type);
                 config.save()?;
+                let config_dir = crate::config::config_path();
+                let config_dir = config_dir.parent().unwrap_or(Path::new("."));
+                recovery_file_msg = Some(
+                    save_recovery_codes_to(
+                        config_dir,
+                        target_profile,
+                        &res.actor.username,
+                        &res.recovery_codes,
+                    )?
+                    .display()
+                    .to_string(),
+                );
             }
 
             if output.json {
@@ -61,6 +127,9 @@ pub async fn handle_auth(
 
                 if save {
                     println!("\nCredentials saved to profile '{target_profile}'.");
+                    if let Some(path) = &recovery_file_msg {
+                        println!("Recovery codes also saved to '{path}' (0600).");
+                    }
                 }
             }
         }
@@ -324,4 +393,29 @@ pub async fn handle_auth(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_save_recovery_codes_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let codes = vec!["AAA-111".to_string(), "BBB-222".to_string()];
+        let path = save_recovery_codes_to(dir.path(), "work", "alice", &codes).unwrap();
+        assert!(path.ends_with("recovery-work.txt"));
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("alice"));
+        assert!(content.contains("AAA-111"));
+        assert!(content.contains("BBB-222"));
+        assert!(!content.contains("api_key"));
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o600);
+        }
+    }
 }
