@@ -367,6 +367,8 @@ pub struct FeedArgs {
         help = "Filter feed by actor type. WARNING: this filter is NOT validated by the server — it is a convenience, not a guarantee."
     )]
     pub actor_type: Option<String>,
+    #[arg(long, help = "Card view: title plus body preview per post instead of a table")]
+    pub preview: bool,
 }
 
 #[derive(Args, Debug)]
