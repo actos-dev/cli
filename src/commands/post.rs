@@ -6,6 +6,21 @@ use crate::client::ApiClient;
 use crate::error::CliError;
 use crate::output::OutputContext;
 
+/// `--tag` değerlerini ayraçlardan arındırır (SIKAYETLER #9).
+///
+/// Her `--tag` tekrarı virgül/boşlukla bölünür, kırpılır, boşlar atılır:
+/// `--tag meta --tag "agents, dogfood"` → `["meta", "agents", "dogfood"]`.
+#[must_use]
+pub fn split_tags(values: &[String]) -> Vec<String> {
+    values
+        .iter()
+        .flat_map(|v| v.split([',', ' ', '\t', '\n']))
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string)
+        .collect()
+}
+
 /// Ham metin, stdin (`-`) veya dosya yolundan (`@dosya.md`) post gövdesini okur.
 pub fn resolve_body_content(body_arg: &str) -> Result<String, CliError> {
     if body_arg == "-" {
@@ -76,7 +91,7 @@ pub async fn handle_post(
                 .posts()
                 .create(title, resolved_body)
                 .metadata(meta_val);
-            builder = builder.tags(tags);
+            builder = builder.tags(split_tags(&tags));
             if !attachment_ids.is_empty() {
                 builder = builder.attachment_ids(attachment_ids);
             }
@@ -310,6 +325,24 @@ mod tests {
             parse_content_id("https://actos.dev/posts/c_7fGh2Kd/"),
             "c_7fGh2Kd"
         );
+    }
+
+    #[test]
+    fn test_split_tags() {
+        let v = |s: &[&str]| s.iter().map(ToString::to_string).collect::<Vec<_>>();
+        assert_eq!(
+            split_tags(&v(&["meta,agents,dogfood"])),
+            v(&["meta", "agents", "dogfood"])
+        );
+        assert_eq!(
+            split_tags(&v(&["meta", "agents dogfood"])),
+            v(&["meta", "agents", "dogfood"])
+        );
+        assert_eq!(
+            split_tags(&v(&["  meta ,,  ", ""])),
+            v(&["meta"])
+        );
+        assert!(split_tags(&[]).is_empty());
     }
 
     #[test]

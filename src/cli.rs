@@ -257,7 +257,7 @@ pub enum PostAction {
             help = "Post body (text, '-' for stdin, or '@file.md' for a file)"
         )]
         body: String,
-        #[arg(long = "tag", action = clap::ArgAction::Append)]
+        #[arg(long = "tag", action = clap::ArgAction::Append, value_name = "TAG", help = "Tag for the post (repeatable; comma/space-separated values are split: --tag meta,agents)")]
         tags: Vec<String>,
         #[arg(long = "attach", action = clap::ArgAction::Append, help = "File path to attach to the post (auto-uploaded)")]
         attach: Vec<String>,
