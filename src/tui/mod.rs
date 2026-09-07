@@ -75,14 +75,14 @@ async fn handle_mouse(
                     }
                 }
                 Some(mouse::MouseAction::SelectFeed(i)) => {
-                    if app.feed_selected == i {
+                    if app.feed.selected == i {
                         app.open_selected_post(client).await;
                     } else {
-                        app.feed_selected = i;
+                        app.feed.selected = i;
                     }
                 }
                 Some(mouse::MouseAction::SelectSearch(i)) => {
-                    app.search_selected = i;
+                    app.search.selected = i;
                 }
                 None => {}
             }
@@ -121,8 +121,12 @@ async fn run_loop(
             }
 
             match key.code {
-                KeyCode::Char('q') => {
+                // B4: arama kutusunda `q` harftir, çıkış değil.
+                KeyCode::Char('q') if app.current_tab != app::CurrentTab::Search => {
                     app.should_quit = true;
+                }
+                KeyCode::Char('q') => {
+                    app.search_query.push('q');
                 }
                 KeyCode::Char('?') => {
                     app.show_help_popup = !app.show_help_popup;
@@ -134,15 +138,34 @@ async fn run_loop(
                     app.previous_tab();
                 }
                 KeyCode::Esc => {
-                    if app.current_tab == app::CurrentTab::Detail {
-                        app.current_tab = app.previous_tab;
-                    }
+                    app.go_back();
                 }
                 KeyCode::Char('j') | KeyCode::Down => {
                     app.move_down();
                 }
                 KeyCode::Char('k') | KeyCode::Up => {
                     app.move_up();
+                }
+                // B3: sekme başlıklarında yazan F1-F4 gerçekten çalışır.
+                KeyCode::F(1) => {
+                    app.current_tab = app::CurrentTab::Feed;
+                }
+                KeyCode::F(2) => {
+                    app.current_tab = app::CurrentTab::Search;
+                }
+                KeyCode::F(3) => {
+                    app.current_tab = app::CurrentTab::Profile;
+                }
+                KeyCode::F(4) => {
+                    app.current_tab = app::CurrentTab::Help;
+                }
+                KeyCode::Char('t')
+                    if app.current_tab == app::CurrentTab::Search
+                        && key
+                            .modifiers
+                            .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                {
+                    app.cycle_search_type();
                 }
                 KeyCode::Enter => match app.current_tab {
                     app::CurrentTab::Feed => {

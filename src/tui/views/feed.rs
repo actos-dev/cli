@@ -8,7 +8,7 @@ use crate::tui::app::App;
 use crate::tui::mouse::MouseAction;
 
 pub fn render_feed(frame: &mut Frame, app: &mut App, area: Rect) {
-    if app.feed_posts.is_empty() {
+    if app.feed.items.is_empty() {
         let empty_block = Block::default()
             .title(" Feed (Empty) ")
             .borders(Borders::ALL);
@@ -16,12 +16,14 @@ pub fn render_feed(frame: &mut Frame, app: &mut App, area: Rect) {
         return;
     }
 
+    let selected = app.feed.selected;
     let items: Vec<ListItem> = app
-        .feed_posts
+        .feed
+        .items
         .iter()
         .enumerate()
         .map(|(idx, post)| {
-            let is_selected = idx == app.feed_selected;
+            let is_selected = idx == selected;
             let prefix = if is_selected { "▶ " } else { "  " };
 
             let title_style = if is_selected {
@@ -61,7 +63,7 @@ pub fn render_feed(frame: &mut Frame, app: &mut App, area: Rect) {
     // Satır tıklama alanları: çerçeve içi, satır başına bir hücre.
     let list_top = area.y.saturating_add(1);
     let visible = (area.height.saturating_sub(2)) as usize;
-    for (idx, _) in app.feed_posts.iter().enumerate().take(visible) {
+    for (idx, _) in app.feed.items.iter().enumerate().take(visible) {
         app.hit_areas.push((
             Rect::new(
                 area.x.saturating_add(1),
