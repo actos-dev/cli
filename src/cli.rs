@@ -325,8 +325,11 @@ pub enum CommentAction {
     },
     /// Lists a post's comment tree
     List {
-        /// Post ID or URL
-        post_id: String,
+        /// Post ID or URL (exactly one of POST_ID / --actor is required)
+        post_id: Option<String>,
+        /// List an actor's comments instead of a post's tree
+        #[arg(long, value_name = "USERNAME")]
+        actor: Option<String>,
         #[arg(long, value_parser = ["top", "new"], help = "Sort order (top, new)")]
         sort: Option<String>,
         #[arg(long, help = "Maximum tree depth")]

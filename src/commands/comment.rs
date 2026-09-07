@@ -6,6 +6,41 @@ use crate::commands::post::{parse_content_id, resolve_body_content};
 use crate::error::CliError;
 use crate::output::OutputContext;
 
+/// `comment list` hedefini çözer (SIKAYETLER #8).
+///
+/// `POST_ID` (ağaç) ve `--actor` (düz liste) tam-biri-mutlaka kuralıyla
+/// ayrılır; ikisi birden ya da hiçbiri kullanım hatasıdır.
+#[derive(Debug, PartialEq, Eq)]
+pub enum CommentListTarget {
+    Post(String),
+    Actor(String),
+}
+
+pub fn resolve_comment_list_target(
+    post_id: Option<&str>,
+    actor: Option<&str>,
+) -> Result<CommentListTarget, CliError> {
+    match (post_id, actor) {
+        (Some(p), None) => Ok(CommentListTarget::Post(parse_content_id(p))),
+        (None, Some(a)) => {
+            let a = a.trim();
+            if a.is_empty() {
+                Err(CliError::Usage(
+                    "Actor username must not be empty.".to_string(),
+                ))
+            } else {
+                Ok(CommentListTarget::Actor(a.to_string()))
+            }
+        }
+        (Some(_), Some(_)) => Err(CliError::Usage(
+            "Pass either POST_ID or '--actor <username>', not both.".to_string(),
+        )),
+        (None, None) => Err(CliError::Usage(
+            "Missing target: pass POST_ID or '--actor <username>'.".to_string(),
+        )),
+    }
+}
+
 pub async fn handle_comment(
     action: CommentAction,
     client: &ApiClient,
@@ -99,54 +134,19 @@ pub async fn handle_comment(
 
         CommentAction::List {
             post_id,
+            actor,
             sort,
             depth,
             parent,
             body_html,
         } => {
-            let p_id = parse_content_id(&post_id);
-            let path = format!("/posts/{p_id}/comments");
-
-            let mut query_params: Vec<(&str, String)> = Vec::new();
-            if let Some(s) = sort {
-                query_params.push(("sort", s));
-            }
-            if let Some(d) = depth {
-                query_params.push(("depth", d.to_string()));
-            }
-            if let Some(p) = parent {
-                query_params.push(("parent", parse_content_id(&p)));
-            }
-            if body_html {
-                query_params.push(("body_html", "true".to_string()));
-            }
-
-            let query_refs: Vec<(&str, &str)> =
-                query_params.iter().map(|(k, v)| (*k, v.as_str())).collect();
-            let query_opt = if query_refs.is_empty() {
-                None
-            } else {
-                Some(query_refs.as_slice())
-            };
-
-            let (val, rate_limit) = client.get_json(&path, query_opt).await?;
-
-            if output.json {
-                output.print_json(&val, Some(rate_limit));
-            } else {
-                let thread: actos_sdk::actos_types::content::CommentThreadResponse =
-                    serde_json::from_value(val).map_err(|e| {
-                        CliError::General(format!("Invalid comment thread response: {e}"))
-                    })?;
-
-                if thread.comments.is_empty() {
-                    println!("No comments found for post '{p_id}'.");
-                } else {
-                    println!("Comments for post '{p_id}':\n");
-                    let total = thread.comments.len();
-                    for (i, root) in thread.comments.iter().enumerate() {
-                        print_comment_tree(root, "", i == total - 1);
-                    }
+            match resolve_comment_list_target(post_id.as_deref(), actor.as_deref())? {
+                CommentListTarget::Actor(username) => {
+                    list_actor_comments(client, output, &username).await?;
+                }
+                CommentListTarget::Post(raw_id) => {
+                    let p_id = parse_content_id(&raw_id);
+                    list_post_tree(client, output, &p_id, sort, depth, parent, body_html).await?;
                 }
             }
         }
@@ -211,6 +211,101 @@ pub async fn handle_comment(
     Ok(())
 }
 
+/// Bir aktörün yorumlarını düz liste olarak basar (`GET /actors/{u}/comments`).
+async fn list_actor_comments(
+    client: &ApiClient,
+    output: &OutputContext,
+    username: &str,
+) -> Result<(), CliError> {
+    let path = format!("/actors/{username}/comments");
+    let (val, rate_limit) = client.get_json(&path, None).await?;
+
+    if output.json {
+        output.print_json(&val, Some(rate_limit));
+    } else {
+        let comments = val.get("comments").and_then(|v| v.as_array());
+        match comments {
+            Some(list) if !list.is_empty() => {
+                println!("Comments by @{username}:\n");
+                for item in list {
+                    let author = item["author"]["username"].as_str().unwrap_or("?");
+                    let id = item["id"].as_str().unwrap_or("");
+                    let score = item["score"].to_string();
+                    let full_body = item["body"].as_str().unwrap_or("");
+                    let snippet = if full_body.chars().count() > 120 {
+                        let s: String = full_body.chars().take(117).collect();
+                        format!("{s}...")
+                    } else {
+                        full_body.replace('\n', " ")
+                    };
+                    println!("@{author} ({id}) [score: {score}]: {snippet}\n");
+                }
+            }
+            _ => println!("No comments found for '@{username}'."),
+        }
+    }
+
+    Ok(())
+}
+
+/// Bir postun yorum ağacını basar (`GET /posts/{id}/comments`).
+#[allow(clippy::too_many_arguments)]
+async fn list_post_tree(
+    client: &ApiClient,
+    output: &OutputContext,
+    p_id: &str,
+    sort: Option<String>,
+    depth: Option<u32>,
+    parent: Option<String>,
+    body_html: bool,
+) -> Result<(), CliError> {
+    let path = format!("/posts/{p_id}/comments");
+
+    let mut query_params: Vec<(&str, String)> = Vec::new();
+    if let Some(s) = sort {
+        query_params.push(("sort", s));
+    }
+    if let Some(d) = depth {
+        query_params.push(("depth", d.to_string()));
+    }
+    if let Some(p) = parent {
+        query_params.push(("parent", parse_content_id(&p)));
+    }
+    if body_html {
+        query_params.push(("body_html", "true".to_string()));
+    }
+
+    let query_refs: Vec<(&str, &str)> =
+        query_params.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    let query_opt = if query_refs.is_empty() {
+        None
+    } else {
+        Some(query_refs.as_slice())
+    };
+
+    let (val, rate_limit) = client.get_json(&path, query_opt).await?;
+
+    if output.json {
+        output.print_json(&val, Some(rate_limit));
+    } else {
+        let thread: actos_sdk::actos_types::content::CommentThreadResponse =
+            serde_json::from_value(val)
+                .map_err(|e| CliError::General(format!("Invalid comment thread response: {e}")))?;
+
+        if thread.comments.is_empty() {
+            println!("No comments found for post '{p_id}'.");
+        } else {
+            println!("Comments for post '{p_id}':\n");
+            let total = thread.comments.len();
+            for (i, root) in thread.comments.iter().enumerate() {
+                print_comment_tree(root, "", i == total - 1);
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn print_comment_tree(
     node: &actos_sdk::actos_types::content::CommentNodeResponse,
     prefix: &str,
@@ -238,5 +333,25 @@ fn print_comment_tree(
     let total_replies = node.replies.len();
     for (i, reply) in node.replies.iter().enumerate() {
         print_comment_tree(reply, &child_prefix, i == total_replies - 1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_comment_list_target() {
+        assert_eq!(
+            resolve_comment_list_target(Some("c_abc"), None).unwrap(),
+            CommentListTarget::Post("c_abc".to_string())
+        );
+        assert_eq!(
+            resolve_comment_list_target(None, Some("alice")).unwrap(),
+            CommentListTarget::Actor("alice".to_string())
+        );
+        assert!(resolve_comment_list_target(None, None).is_err());
+        assert!(resolve_comment_list_target(Some("c_abc"), Some("alice")).is_err());
+        assert!(resolve_comment_list_target(None, Some("  ")).is_err());
     }
 }
