@@ -21,7 +21,13 @@
 #   --version <x.y.z>    Install a specific published version (default: latest).
 #   --no-modify-path     Do not print the PATH export / shell-profile advice.
 #   --help               Show this help and exit.
-#   --force              Reinstall over an existing `actos` binary.
+#   --force              Reinstall even if the requested version is installed.
+#
+# Behavior when `actos` is already installed (and no --force/--version):
+#   the latest published version is compared against the installed one;
+#   a newer release upgrades automatically, otherwise the script exits
+#   quietly with "already up to date". The script never reads stdin, so it
+#   cannot ask — it reports what it did.
 #
 # Exit codes:
 #   0  success
@@ -54,6 +60,74 @@ err()   { printf '%s\n' "${C_RED}✗${C_RESET} $*" >&2; }
 die()   { err "$1"; exit "${2:-1}"; }
 
 # ---------------------------------------------------------------------------
+# Version helpers (pure POSIX sh — also exercised by install/test_install.sh).
+# ---------------------------------------------------------------------------
+
+# version_lt A B: exit 0 iff A < B (numeric, dot-separated).
+# Missing segments count as 0; a pre-release suffix sorts below the release
+# ("1.0-beta" < "1.0"). Non-numeric segments count as 0.
+version_lt() {
+    _a="$1"; _b="$2"
+    _apre=""; _bpre=""
+    case "$_a" in *-*) _apre="${_a#*-}"; _a="${_a%%-*}"; ;; esac
+    case "$_b" in *-*) _bpre="${_b#*-}"; _b="${_b%%-*}"; ;; esac
+    _i=1
+    while :; do
+        _as="$(printf '%s' "$_a" | cut -d. -f"$_i" -s)"
+        _bs="$(printf '%s' "$_b" | cut -d. -f"$_i" -s)"
+        [ -z "$_as$_bs" ] && break
+        case "$_as" in ''|*[!0-9]*) _as=0 ;; esac
+        case "$_bs" in ''|*[!0-9]*) _bs=0 ;; esac
+        [ "$_as" -lt "$_bs" ] && return 0
+        [ "$_as" -gt "$_bs" ] && return 1
+        _i=$((_i + 1))
+    done
+    # Numerically equal: a pre-release suffix sorts below the release.
+    if [ -n "$_apre" ] && [ -z "$_bpre" ]; then
+        return 0
+    fi
+    return 1
+}
+
+# parse_search_version LINE: extract the version from a
+# `cargo search actos-cli` output line (empty when it does not match).
+parse_search_version() {
+    printf '%s' "$1" | sed -n 's/^actos-cli = "\([^"]*\)".*/\1/p'
+}
+
+# installed_version BIN: print "$BIN --version"'s version field ("actos 0.1.1"
+# -> "0.1.1"), or nothing when the binary does not report one.
+installed_version() {
+    "$1" --version 2>/dev/null | awk '{print $2}'
+}
+
+# latest_published: newest actos-cli on crates.io via `cargo search`
+# (empty + nonzero exit when offline or unparsable).
+latest_published() {
+    _out="$(cargo search actos-cli --limit 5 2>/dev/null)" || return 1
+    _line="$(printf '%s' "$_out" | grep '^actos-cli = ' | head -n 1)"
+    [ -n "$_line" ] || return 1
+    parse_search_version "$_line"
+}
+
+# decide_action INSTALLED TARGET FORCE: echo one of
+# up-to-date | install | upgrade | unknown (see header for semantics).
+decide_action() {
+    _installed="$1"; _target="$2"; _force="$3"
+    if [ "$_force" = "1" ]; then echo install; return 0; fi
+    if [ -z "$_target" ]; then echo unknown; return 0; fi
+    if [ -z "$_installed" ]; then echo install; return 0; fi
+    if [ "$_installed" = "$_target" ]; then echo up-to-date; return 0; fi
+    if version_lt "$_installed" "$_target"; then echo upgrade; else echo install; fi
+}
+
+# Tests source this file to reach the helpers above; the flow below must
+# not run then. (Only the test runner sets this variable.)
+if [ "${ACTOS_INSTALL_SOURCED:-0}" = "1" ]; then
+    return 0
+fi
+
+# ---------------------------------------------------------------------------
 # Usage
 # ---------------------------------------------------------------------------
 usage() {
@@ -65,7 +139,7 @@ Usage: sh install.sh [options]
 Options:
   --version <x.y.z>   Install a specific published version (default: latest).
   --no-modify-path    Do not print PATH export / shell-profile advice.
-  --force             Reinstall even if `actos` is already installed.
+  --force             Reinstall even if the requested version is installed.
   --help              Show this help and exit.
 
 Examples:
@@ -178,36 +252,68 @@ CARGO_BIN="${CARGO_BIN:-$CARGO_HOME/bin}"
 
 info "Cargo bin dir:  $CARGO_BIN"
 ok ""
-
 # ---------------------------------------------------------------------------
-# Already installed? Skip the (potentially slow) rebuild unless --force.
+# Resolve what to do: compare installed vs. requested/latest version.
 # ---------------------------------------------------------------------------
-if [ -f "$CARGO_BIN/actos" ] && [ "$FORCE" -ne 1 ]; then
-    warn "'actos' is already installed at: $CARGO_BIN/actos"
-    warn "Re-run with --force to reinstall, or --version to pick a version."
-    info ""
-else
-    # -----------------------------------------------------------------------
-    # Build & install from crates.io.
-    # -----------------------------------------------------------------------
+do_install() {
+    # $1 = version to install (may be empty = cargo picks latest).
+    _want="$1"
     info "Installing the Actos CLI from crates.io ..."
     info "  (${C_DIM}cargo install actos-cli --locked${C_RESET})"
     info ""
-    info "Running: cargo install actos-cli --locked ${VERSION:+--version $VERSION}"
-    info ""
 
-    # Propagate --force to cargo so it actually overwrites an existing binary.
     if [ "$FORCE" -eq 1 ]; then
         force_arg="--force"
     else
         force_arg=""
     fi
 
-    if ! cargo install actos-cli --locked $force_arg ${VERSION:+--version "$VERSION"}; then
+    # shellcheck disable=SC2086
+    if ! cargo install actos-cli --locked $force_arg ${_want:+--version "$_want"}; then
         die "cargo install failed (exit code $?)." 3
     fi
     ok ""
+}
+
+INSTALLED=""
+if [ -f "$CARGO_BIN/actos" ]; then
+    INSTALLED="$(installed_version "$CARGO_BIN/actos")"
 fi
+
+TARGET="$VERSION"
+if [ -z "$TARGET" ]; then
+    info "Checking latest published version ..."
+    TARGET="$(latest_published)" || TARGET=""
+    if [ -z "$TARGET" ]; then
+        warn "Could not determine the latest version (offline?)."
+    fi
+fi
+
+ACTION="$(decide_action "$INSTALLED" "$TARGET" "$FORCE")"
+case "$ACTION" in
+    up-to-date)
+        ok "Already up to date ($INSTALLED), nothing to do."
+        ;;
+    unknown)
+        if [ -n "$INSTALLED" ]; then
+            warn "Could not check for updates; keeping actos $INSTALLED."
+        else
+            die "No actos installed and the latest version is unknown (offline?)." 3
+        fi
+        ;;
+    upgrade)
+        info "Updating actos $INSTALLED -> $TARGET ..."
+        info ""
+        do_install "$TARGET"
+        ;;
+    install)
+        if [ -n "$INSTALLED" ]; then
+            info "Reinstalling actos ($INSTALLED -> ${TARGET:-latest}) ..."
+        fi
+        info ""
+        do_install "$TARGET"
+        ;;
+esac
 
 # ---------------------------------------------------------------------------
 # Verify the binary actually runs.
