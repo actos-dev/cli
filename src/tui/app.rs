@@ -119,6 +119,7 @@ pub struct App {
     pub search_query: String,
     pub search_type: String,
     pub search: PagedList<ContentSummary>,
+    pub search_actors: PagedList<ActorSummary>,
     pub feed_sort: String,
     pub feed_window: String,
     pub feed_actor_type: Option<String>,
@@ -134,6 +135,9 @@ pub struct App {
     pub inbox_unread_total: i64,
     pub saves: PagedList<ContentSummary>,
     pub profile_info: Option<ActorProfileResponse>,
+    pub profile_username: Option<String>,
+    pub profile_posts_tab: bool,
+    pub profile_posts: PagedList<ContentSummary>,
     pub status_message: String,
     pub show_help_popup: bool,
     pub should_quit: bool,
@@ -198,6 +202,7 @@ impl App {
             search_query: String::new(),
             search_type: "post".to_string(),
             search: PagedList::default(),
+            search_actors: PagedList::default(),
             feed_sort: "new".to_string(),
             feed_window: "all".to_string(),
             feed_actor_type: None,
@@ -213,6 +218,9 @@ impl App {
             inbox_unread_total: 0,
             saves: PagedList::default(),
             profile_info: None,
+            profile_username: None,
+            profile_posts_tab: true,
+            profile_posts: PagedList::default(),
             status_message: "Ready".to_string(),
             show_help_popup: false,
             should_quit: false,
@@ -799,6 +807,20 @@ impl App {
         ];
         match client.get_json("/search", Some(&query)).await {
             Ok((val, _rl)) => {
+                if self.search_type == "actor" {
+                    if let Some(results_val) = val.get("results")
+                        && let Ok(results) =
+                            serde_json::from_value::<Vec<ActorSummary>>(results_val.clone())
+                    {
+                        let n = results.len();
+                        self.search_actors.set_items(results);
+                        self.status_message = format!("Found {n} actors");
+                        return;
+                    }
+                    self.search_actors.set_items(Vec::new());
+                    self.status_message = "No actors found".to_string();
+                    return;
+                }
                 if let Some(results_val) = val.get("results")
                     && let Ok(results) =
                         serde_json::from_value::<Vec<ContentSummary>>(results_val.clone())
@@ -813,18 +835,211 @@ impl App {
             }
             Err(e) => {
                 self.search.set_items(Vec::new());
+                self.search_actors.set_items(Vec::new());
                 self.status_message = format!("Search failed: {e}");
             }
         }
     }
 
-    /// Arama tipini döndürür: post → comment → post (actor F5'te).
-    pub fn cycle_search_type(&mut self) {
-        self.search_type = if self.search_type == "post" {
-            "comment".to_string()
-        } else {
-            "post".to_string()
+    pub async fn open_selected_search(&mut self, client: &ApiClient) {
+        if self.search_type == "actor" {
+            let Some(actor) = self.search_actors.selected_item() else {
+                return;
+            };
+            let username = actor.username.clone();
+            self.open_actor_profile(client, &username).await;
+            return;
+        }
+        let Some(item) = self.search.selected_item() else {
+            return;
         };
+        let id = item.id.clone();
+        self.open_content(client, &id).await;
+    }
+
+    // ---------- Profile (self + others) ----------
+
+    /// Aktör profilini açar (F5): kendi profilin veya başkasının.
+    pub async fn open_actor_profile(&mut self, client: &ApiClient, username: &str) {
+        self.profile_username = Some(username.to_string());
+        self.profile_posts_tab = true;
+        self.back_stack.push(self.current_tab);
+        self.current_tab = CurrentTab::Profile;
+        self.refresh_profile_content(client).await;
+    }
+
+    /// Profil başlığı + içerik listesini tazeler.
+    pub async fn refresh_profile_content(&mut self, client: &ApiClient) {
+        let target = match self.profile_username.clone() {
+            Some(u) => u,
+            None => match self.own_username(client).await {
+                Some(u) => {
+                    self.profile_username = Some(u.clone());
+                    u
+                }
+                None => {
+                    self.profile_info = None;
+                    self.status_message =
+                        "Profile needs login. Run 'actos auth login' first.".to_string();
+                    return;
+                }
+            },
+        };
+        match client
+            .get_json(&format!("/actors/{target}"), None)
+            .await
+        {
+            Ok((val, _)) => {
+                if let Ok(profile) =
+                    serde_json::from_value::<ActorProfileResponse>(val)
+                {
+                    self.profile_info = Some(profile);
+                }
+            }
+            Err(e) => {
+                self.profile_info = None;
+                self.status_message = format!("Could not load @{target}: {e}");
+                return;
+            }
+        }
+        let kind = if self.profile_posts_tab {
+            "posts"
+        } else {
+            "comments"
+        };
+        match client
+            .get_json(&format!("/actors/{target}/{kind}"), None)
+            .await
+        {
+            Ok((val, _)) => {
+                let key = if self.profile_posts_tab {
+                    "posts"
+                } else {
+                    "comments"
+                };
+                let next = val
+                    .get("next_cursor")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                if let Some(list) = val.get(key)
+                    && let Ok(items) =
+                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                {
+                    let n = items.len();
+                    self.profile_posts.set_items(items);
+                    self.profile_posts.cursor = next;
+                    self.status_message = format!("@{target}: {n} {kind}");
+                    return;
+                }
+                self.profile_posts.set_items(Vec::new());
+                self.status_message = format!("@{target}: no {kind}.");
+            }
+            Err(e) => self.status_message = format!("Could not load @{target}: {e}"),
+        }
+    }
+
+    pub async fn load_profile_older(&mut self, client: &ApiClient) {
+        let Some(cursor) = self.profile_posts.cursor.clone() else {
+            self.status_message = "Already at the last page.".to_string();
+            return;
+        };
+        let Some(target) = self.profile_username.clone() else {
+            return;
+        };
+        let kind = if self.profile_posts_tab {
+            "posts"
+        } else {
+            "comments"
+        };
+        match client
+            .paginate(
+                &format!("/actors/{target}/{kind}"),
+                &[],
+                25,
+                Some(&cursor),
+            )
+            .await
+        {
+            Ok((val, _)) => {
+                let next = val
+                    .get("next_cursor")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                if let Some(list) = val.get(kind)
+                    && let Ok(items) =
+                        serde_json::from_value::<Vec<ContentSummary>>(list.clone())
+                {
+                    self.profile_posts.items.extend(items);
+                    self.profile_posts.cursor = next;
+                    self.status_message = format!("Loaded older @{target} {kind}.");
+                }
+            }
+            Err(e) => self.status_message = format!("Could not load @{target}: {e}"),
+        }
+    }
+
+    async fn own_username(&self, client: &ApiClient) -> Option<String> {
+        client.api_key()?;
+        client
+            .get_json("/auth/whoami", None)
+            .await
+            .ok()
+            .and_then(|(val, _)| {
+                val.get("actor")
+                    .and_then(|a| a.get("username"))
+                    .and_then(|u| u.as_str())
+                    .map(ToString::to_string)
+            })
+    }
+
+    pub fn cycle_profile_tab(&mut self) {
+        self.profile_posts_tab = !self.profile_posts_tab;
+    }
+
+    pub async fn open_selected_profile_post(&mut self, client: &ApiClient) {
+        let Some(item) = self.profile_posts.selected_item() else {
+            return;
+        };
+        let id = item.id.clone();
+        self.open_content(client, &id).await;
+    }
+
+    pub async fn follow_profile(&mut self, client: &ApiClient, follow: bool) {
+        if let Err(msg) = Self::require_login(client) {
+            self.status_message = msg;
+            return;
+        }
+        let Some(username) = self.profile_username.clone() else {
+            return;
+        };
+        let method = if follow {
+            reqwest::Method::PUT
+        } else {
+            reqwest::Method::DELETE
+        };
+        match client
+            .execute_request(method, &format!("/actors/{username}/follow"), None, None, None)
+            .await
+        {
+            Ok(_) => {
+                self.status_message = if follow {
+                    format!("Following @{username}.")
+                } else {
+                    format!("Unfollowed @{username}.")
+                };
+            }
+            Err(e) => self.status_message = format!("Follow failed: {e}"),
+        }
+    }
+
+    /// Arama tipini döndürür: post → comment → actor.
+    pub fn cycle_search_type(&mut self) {
+        self.search_type = match self.search_type.as_str() {
+            "post" => "comment",
+            "comment" => "actor",
+            _ => "post",
+        }
+        .to_string();
         self.status_message = format!("Search type: {}", self.search_type);
     }
 
@@ -1049,20 +1264,9 @@ impl App {
     }
 
     pub async fn refresh_profile(&mut self, client: &ApiClient) {
-        if client.api_key().is_none() {
-            self.profile_info = None;
-            return;
-        }
-
-        if let Ok((whoami, _rl)) = client.get_json("/auth/whoami", None).await
-            && let Some(username) = whoami["actor"]["username"].as_str()
-        {
-            let profile_path = format!("/actors/{username}");
-            if let Ok((profile_val, _rl)) = client.get_json(&profile_path, None).await
-                && let Ok(profile) = serde_json::from_value::<ActorProfileResponse>(profile_val)
-            {
-                self.profile_info = Some(profile);
-            }
+        // Açılışta kendi profilin; kullanıcı F5 akışında değişir.
+        if self.profile_username.is_none() {
+            self.refresh_profile_content(client).await;
         }
     }
 
@@ -1100,9 +1304,16 @@ impl App {
             CurrentTab::Tags => self.tags.move_up(),
             CurrentTab::TagPosts => self.tag_posts.move_up(),
             CurrentTab::Actors => self.actors.move_up(),
-            CurrentTab::Search => self.search.move_up(),
+            CurrentTab::Search => {
+                if self.search_type == "actor" {
+                    self.search_actors.move_up();
+                } else {
+                    self.search.move_up();
+                }
+            }
             CurrentTab::Inbox => self.inbox.move_up(),
             CurrentTab::Saves => self.saves.move_up(),
+            CurrentTab::Profile => self.profile_posts.move_up(),
             _ => {}
         }
     }
@@ -1113,9 +1324,16 @@ impl App {
             CurrentTab::Tags => self.tags.move_down(),
             CurrentTab::TagPosts => self.tag_posts.move_down(),
             CurrentTab::Actors => self.actors.move_down(),
-            CurrentTab::Search => self.search.move_down(),
+            CurrentTab::Search => {
+                if self.search_type == "actor" {
+                    self.search_actors.move_down();
+                } else {
+                    self.search.move_down();
+                }
+            }
             CurrentTab::Inbox => self.inbox.move_down(),
             CurrentTab::Saves => self.saves.move_down(),
+            CurrentTab::Profile => self.profile_posts.move_down(),
             _ => {}
         }
     }
@@ -1138,6 +1356,7 @@ mod tests {
             search_query: String::new(),
             search_type: "post".to_string(),
             search: PagedList::default(),
+            search_actors: PagedList::default(),
             feed_sort: "new".to_string(),
             feed_window: "all".to_string(),
             feed_actor_type: None,
@@ -1153,6 +1372,9 @@ mod tests {
             inbox_unread_total: 0,
             saves: PagedList::default(),
             profile_info: None,
+            profile_username: None,
+            profile_posts_tab: true,
+            profile_posts: PagedList::default(),
             status_message: String::new(),
             show_help_popup: false,
             should_quit: false,
@@ -1185,6 +1407,8 @@ mod tests {
         app.current_tab = CurrentTab::Search;
         app.cycle_search_type();
         assert_eq!(app.search_type, "comment");
+        app.cycle_search_type();
+        assert_eq!(app.search_type, "actor");
         app.cycle_search_type();
         assert_eq!(app.search_type, "post");
     }
@@ -1418,5 +1642,36 @@ mod tests {
         assert_eq!(app.inbox.items.len(), 1);
         assert_eq!(app.inbox_unread_total, 7);
         assert!(app.inbox.items[0].read_at.is_none());
+    }
+
+    #[test]
+    fn test_tab_cycle_covers_new_screens() {
+        let mut app = test_app();
+        let order = [
+            CurrentTab::Tags,
+            CurrentTab::Actors,
+            CurrentTab::Search,
+            CurrentTab::Inbox,
+            CurrentTab::Saves,
+            CurrentTab::Profile,
+            CurrentTab::Help,
+            CurrentTab::Feed,
+        ];
+        for expected in order {
+            app.next_tab();
+            assert_eq!(app.current_tab, expected);
+        }
+        app.previous_tab();
+        assert_eq!(app.current_tab, CurrentTab::Help);
+    }
+
+    #[test]
+    fn test_profile_tab_cycle() {
+        let mut app = test_app();
+        assert!(app.profile_posts_tab);
+        app.cycle_profile_tab();
+        assert!(!app.profile_posts_tab);
+        app.cycle_profile_tab();
+        assert!(app.profile_posts_tab);
     }
 }

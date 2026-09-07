@@ -17,6 +17,8 @@ pub enum MouseAction {
     SelectFeed(usize),
     /// Arama sonucu satırını seç.
     SelectSearch(usize),
+    /// Aktör arama sonucu satırını seç (zaten seçiliyse profili aç).
+    SelectSearchActor(usize),
     /// Tag satırını seç (zaten seçiliyse postları aç).
     SelectTag(usize),
     /// Tag postu satırını seç (zaten seçiliyse detayı aç).
@@ -27,6 +29,8 @@ pub enum MouseAction {
     SelectNotif(usize),
     /// Kayıtlı içerik satırını seç (zaten seçiliyse aç).
     SelectSave(usize),
+    /// Profil içerik satırını seç (zaten seçiliyse aç).
+    SelectProfilePost(usize),
 }
 
 /// (x, y) hücresine denk gelen aksiyonu bulur.

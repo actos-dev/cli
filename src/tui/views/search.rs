@@ -32,6 +32,10 @@ pub fn render_search(frame: &mut Frame, app: &mut App, area: Rect) {
 
     frame.render_widget(input_widget, chunks[0]);
 
+    if app.search_type == "actor" {
+        return render_search_actors(frame, app, chunks[1]);
+    }
+
     if app.search.items.is_empty() {
         let empty = Paragraph::new("No search results to display.")
             .block(Block::default().title(" Results ").borders(Borders::ALL));
@@ -92,6 +96,70 @@ pub fn render_search(frame: &mut Frame, app: &mut App, area: Rect) {
                 1,
             ),
             MouseAction::SelectSearch(idx),
+        ));
+    }
+}
+
+fn render_search_actors(frame: &mut Frame, app: &mut App, area: Rect) {
+    use crate::tui::mouse::MouseAction as MA;
+
+    if app.search_actors.items.is_empty() {
+        let empty = Paragraph::new("No actors found.")
+            .block(Block::default().title(" Actors ").borders(Borders::ALL));
+        frame.render_widget(empty, area);
+        return;
+    }
+
+    let selected = app.search_actors.selected;
+    let items: Vec<ListItem> = app
+        .search_actors
+        .items
+        .iter()
+        .enumerate()
+        .map(|(idx, actor)| {
+            let style = if idx == selected {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            let prefix = if idx == selected { "▶ " } else { "  " };
+            let display = actor.display_name.as_deref().unwrap_or("");
+            let name = if display.is_empty() {
+                format!("@{}", actor.username)
+            } else {
+                format!("{display} (@{})", actor.username)
+            };
+            ListItem::new(Line::from(vec![
+                Span::styled(prefix, Style::default().fg(Color::Yellow)),
+                Span::styled(name, style),
+                Span::styled(
+                    format!("  [{}]", actor.actor_type),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]))
+        })
+        .collect();
+
+    let list = List::new(items).block(
+        Block::default()
+            .title(" Actors (Enter: open profile) ")
+            .borders(Borders::ALL),
+    );
+    frame.render_widget(list, area);
+
+    let top = area.y.saturating_add(1);
+    let visible = (area.height.saturating_sub(2)) as usize;
+    for (idx, _) in app.search_actors.items.iter().enumerate().take(visible) {
+        app.hit_areas.push((
+            Rect::new(
+                area.x.saturating_add(1),
+                top.saturating_add(idx as u16),
+                area.width.saturating_sub(2),
+                1,
+            ),
+            MA::SelectSearchActor(idx),
         ));
     }
 }

@@ -99,7 +99,14 @@ async fn handle_mouse(
                     }
                 }
                 Some(mouse::MouseAction::SelectActor(i)) => {
-                    app.actors.selected = i;
+                    if app.actors.selected == i {
+                        if let Some(actor) = app.actors.selected_item() {
+                            let username = actor.username.clone();
+                            app.open_actor_profile(client, &username).await;
+                        }
+                    } else {
+                        app.actors.selected = i;
+                    }
                 }
                 Some(mouse::MouseAction::SelectNotif(i)) => {
                     app.inbox.selected = i;
@@ -109,6 +116,20 @@ async fn handle_mouse(
                         app.open_selected_save(client).await;
                     } else {
                         app.saves.selected = i;
+                    }
+                }
+                Some(mouse::MouseAction::SelectSearchActor(i)) => {
+                    if app.search_actors.selected == i {
+                        app.open_selected_search(client).await;
+                    } else {
+                        app.search_actors.selected = i;
+                    }
+                }
+                Some(mouse::MouseAction::SelectProfilePost(i)) => {
+                    if app.profile_posts.selected == i {
+                        app.open_selected_profile_post(client).await;
+                    } else {
+                        app.profile_posts.selected = i;
                     }
                 }
                 None => {}
@@ -320,6 +341,16 @@ async fn run_loop(
                 KeyCode::Char('A') if app.current_tab == app::CurrentTab::Inbox => {
                     app.mark_all_read(client).await;
                 }
+                KeyCode::Char('t') if app.current_tab == app::CurrentTab::Profile => {
+                    app.cycle_profile_tab();
+                    app.refresh_profile_content(client).await;
+                }
+                KeyCode::Char('f') if app.current_tab == app::CurrentTab::Profile => {
+                    app.follow_profile(client, true).await;
+                }
+                KeyCode::Char('u') if app.current_tab == app::CurrentTab::Profile => {
+                    app.follow_profile(client, false).await;
+                }
                 // B3: sekme başlıklarında yazan F1-F8 gerçekten çalışır.
                 KeyCode::F(1) => {
                     enter_tab(app, client, app::CurrentTab::Feed).await;
@@ -364,9 +395,10 @@ async fn run_loop(
                         app.open_selected_tag_post(client).await;
                     }
                     app::CurrentTab::Actors => {
-                        app.status_message =
-                            "Actor profiles open from F5 (coming in the Profile phase)."
-                                .to_string();
+                        if let Some(actor) = app.actors.selected_item() {
+                            let username = actor.username.clone();
+                            app.open_actor_profile(client, &username).await;
+                        }
                     }
                     app::CurrentTab::Search => {
                         app.perform_search(client).await;
@@ -376,6 +408,9 @@ async fn run_loop(
                     }
                     app::CurrentTab::Saves => {
                         app.open_selected_save(client).await;
+                    }
+                    app::CurrentTab::Profile => {
+                        app.open_selected_profile_post(client).await;
                     }
                     _ => {}
                 },
@@ -394,6 +429,9 @@ async fn run_loop(
                     }
                     app::CurrentTab::Saves => {
                         app.load_saves_older(client).await;
+                    }
+                    app::CurrentTab::Profile => {
+                        app.load_profile_older(client).await;
                     }
                     _ => {}
                 },
