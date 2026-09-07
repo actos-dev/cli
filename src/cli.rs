@@ -136,6 +136,8 @@ pub enum Commands {
     Help(HelpArgs),
     /// Starts the terminal user interface (TUI)
     Tui,
+    /// Checks for a newer release and self-updates via Cargo
+    Update(UpdateArgs),
 }
 
 #[derive(Args, Debug)]
@@ -732,4 +734,17 @@ pub struct HelpArgs {
     /// Print as a machine-readable JSON schema
     #[arg(long)]
     pub json: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct UpdateArgs {
+    /// Only report installed vs. latest versions, do not install anything
+    #[arg(long)]
+    pub check: bool,
+    /// Update to a specific published version instead of the latest
+    #[arg(long, value_name = "VERSION")]
+    pub version: Option<String>,
+    /// Reinstall even when the requested version is already installed
+    #[arg(long)]
+    pub force: bool,
 }

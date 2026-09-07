@@ -18,6 +18,7 @@ use actos::commands::report::handle_report;
 use actos::commands::save::handle_save;
 use actos::commands::search::handle_search;
 use actos::commands::tag::handle_tag;
+use actos::commands::update::handle_update;
 use actos::commands::upload::handle_upload;
 use actos::commands::vote::handle_vote;
 use actos::commands::watch::handle_watch;
@@ -62,6 +63,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
             handle_save(args.action, &client, &output, limit, cursor.as_deref()).await
         }
         Commands::Upload(args) => handle_upload(args.action, &client, &output, yes).await,
+        Commands::Update(args) => handle_update(args, &output).await,
         Commands::Report(args) => handle_report(args.action, &client, &output).await,
         Commands::Admin(args) => {
             handle_admin(args.action, &client, &output, yes, limit, cursor.as_deref()).await

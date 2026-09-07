@@ -17,6 +17,7 @@ fn get_examples_for_command(name: &str) -> Vec<String> {
             "actos config set default_profile prod".into(),
         ],
         "user" => vec!["actos user".into(), "actos user work".into()],
+        "update" => vec!["actos update --check".into(), "actos update".into()],
         "auth" => vec![
             "actos auth whoami".into(),
             "actos auth login --stdin".into(),

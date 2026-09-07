@@ -15,6 +15,7 @@ pub mod report;
 pub mod save;
 pub mod search;
 pub mod tag;
+pub mod update;
 pub mod upload;
 pub mod vote;
 pub mod watch;
