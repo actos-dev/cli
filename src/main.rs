@@ -6,6 +6,7 @@ use actos::commands::admin::handle_admin;
 use actos::commands::api::handle_api;
 use actos::commands::auth::handle_auth;
 use actos::commands::comment::handle_comment;
+use actos::commands::community::handle_community;
 use actos::commands::completion::handle_completion;
 use actos::commands::config::{handle_config, handle_user};
 use actos::commands::feed::handle_feed;
@@ -19,7 +20,6 @@ use actos::commands::save::handle_save;
 use actos::commands::search::handle_search;
 use actos::commands::tag::handle_tag;
 use actos::commands::update::handle_update;
-use actos::commands::upload::handle_upload;
 use actos::commands::vote::handle_vote;
 use actos::commands::watch::handle_watch;
 use actos::config::Config;
@@ -47,6 +47,9 @@ async fn run(cli: Cli) -> Result<(), CliError> {
             handle_auth(args.action, &client, &mut config, &output, &target_profile).await
         }
         Commands::Post(args) => handle_post(args.action, &client, &output, yes).await,
+        Commands::Community(args) => {
+            handle_community(args.action, &client, &output, yes, limit, cursor.as_deref()).await
+        }
         Commands::Comment(args) => handle_comment(args.action, &client, &output, yes).await,
         Commands::Feed(args) => handle_feed(args, &client, &output, limit, cursor.as_deref()).await,
         Commands::Search(args) => {
@@ -62,7 +65,6 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         Commands::Save(args) => {
             handle_save(args.action, &client, &output, limit, cursor.as_deref()).await
         }
-        Commands::Upload(args) => handle_upload(args.action, &client, &output, yes).await,
         Commands::Update(args) => handle_update(args, &output).await,
         Commands::Report(args) => handle_report(args.action, &client, &output).await,
         Commands::Admin(args) => {

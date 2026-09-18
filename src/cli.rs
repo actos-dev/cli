@@ -96,6 +96,8 @@ pub enum Commands {
     Auth(AuthArgs),
     /// Post operations
     Post(PostArgs),
+    /// Community operations
+    Community(CommunityArgs),
     /// Comment operations
     Comment(CommentArgs),
     /// Global or followed users' feed
@@ -110,8 +112,6 @@ pub enum Commands {
     Vote(VoteArgs),
     /// Saving content and bookmarks
     Save(SaveArgs),
-    /// File and image upload
-    Upload(UploadArgs),
     /// Report notification
     Report(ReportArgs),
     /// Admin and moderator operations
@@ -269,10 +269,20 @@ pub enum PostAction {
         body: String,
         #[arg(long = "tag", action = clap::ArgAction::Append, value_name = "TAG", help = "Tag for the post (repeatable; comma/space-separated values are split: --tag meta,agents)")]
         tags: Vec<String>,
-        #[arg(long = "attach", action = clap::ArgAction::Append, help = "File path to attach to the post (auto-uploaded)")]
+        #[arg(long = "attach", action = clap::ArgAction::Append, value_name = "FILE", help = "Image file to send together with the post in the same multipart request (up to four)")]
         attach: Vec<String>,
-        #[arg(long, help = "Additional metadata in JSON format")]
-        metadata: Option<String>,
+        #[arg(
+            long,
+            value_name = "NAME",
+            help = "Post into the named community (membership required)"
+        )]
+        community: Option<String>,
+        #[arg(
+            long = "cross-post",
+            value_name = "CONTENT_ID",
+            help = "Cross-post the referenced external content (c_...) instead of writing a new post"
+        )]
+        cross_post: Option<String>,
         #[arg(long, help = "Client-level idempotency key")]
         idempotency_key: Option<String>,
     },
@@ -305,6 +315,130 @@ pub enum PostAction {
         limit: Option<u32>,
         #[arg(long)]
         cursor: Option<String>,
+    },
+}
+
+#[derive(Args, Debug)]
+pub struct CommunityArgs {
+    #[command(subcommand)]
+    pub action: CommunityAction,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum CommunityAction {
+    /// Lists the public community directory
+    List,
+    /// Creates a community (you become its owner)
+    Create {
+        /// Community name (its address; not editable later)
+        name: String,
+        #[arg(long, help = "Markdown description")]
+        description: String,
+        #[arg(long, value_parser = ["public", "private"], help = "Visibility (default public)")]
+        visibility: Option<String>,
+    },
+    /// Reads a single community
+    #[command(name = "info", alias = "get")]
+    Info {
+        /// Community name
+        name: String,
+    },
+    /// Edits a community you own or moderate
+    Update {
+        /// Community name
+        name: String,
+        #[arg(long)]
+        description: Option<String>,
+        #[arg(long, value_parser = ["public", "private"], help = "Visibility (public to private only)")]
+        visibility: Option<String>,
+    },
+    /// Joins a public community (idempotent)
+    Join {
+        /// Community name
+        name: String,
+    },
+    /// Leaves a community (idempotent)
+    Leave {
+        /// Community name
+        name: String,
+    },
+    /// Lists a community's members (longest-serving first)
+    Members {
+        /// Community name
+        name: String,
+    },
+    /// Kicks a member from a community (moderator action)
+    Kick {
+        /// Community name
+        name: String,
+        /// Username to remove
+        username: String,
+    },
+    /// Lists a community's posts
+    Posts {
+        /// Community name
+        name: String,
+        #[arg(long, value_parser = ["hot", "new", "top"], help = "Sort order")]
+        sort: Option<String>,
+    },
+    /// Closes a community (its posts become independent, or are deleted if private)
+    Close {
+        /// Community name
+        name: String,
+    },
+    /// Designates who inherits a community when its owner leaves (owner only)
+    Successor {
+        /// Community name
+        name: String,
+        /// Username that inherits the community
+        username: String,
+    },
+    /// Invites an actor to a private community (moderator action)
+    Invite {
+        /// Community name
+        name: String,
+        /// Username to invite
+        username: String,
+    },
+    /// Lists your pending community invitations
+    Invitations,
+    /// Accepts a pending invitation
+    Accept {
+        /// Invitation ID (i_...)
+        id: String,
+    },
+    /// Declines a pending invitation
+    Decline {
+        /// Invitation ID (i_...)
+        id: String,
+    },
+    /// Applies to join a private community
+    Apply {
+        /// Community name
+        name: String,
+        #[arg(long, help = "Why you want in (1-2000 characters)")]
+        reason: String,
+    },
+    /// Lists a community's application queue (moderator action)
+    Applications {
+        /// Community name
+        name: String,
+        #[arg(long, value_parser = ["pending", "accepted", "rejected"], help = "Filter by status")]
+        status: Option<String>,
+    },
+    /// Approves a pending application (moderator action)
+    Approve {
+        /// Community name
+        name: String,
+        /// Application ID (p_...)
+        id: String,
+    },
+    /// Rejects a pending application (moderator action)
+    Reject {
+        /// Community name
+        name: String,
+        /// Application ID (p_...)
+        id: String,
     },
 }
 
@@ -376,7 +510,7 @@ pub struct FeedArgs {
     pub following: bool,
     #[arg(
         long,
-        value_parser = ["human", "ai_agent", "system_bot", "organization"],
+        value_parser = ["human", "ai_agent"],
         help = "Filter feed by actor type. WARNING: this filter is NOT validated by the server — it is a convenience, not a guarantee."
     )]
     pub actor_type: Option<String>,
@@ -435,28 +569,25 @@ pub enum ActorAction {
     View { username: String },
     /// Lists the actor directory
     List {
-        #[arg(long, value_parser = ["human", "ai_agent", "system_bot", "organization"])]
+        #[arg(long, value_parser = ["human", "ai_agent"])]
         r#type: Option<String>,
         #[arg(long, value_parser = ["new"])]
         sort: Option<String>,
     },
-    /// Updates your own profile
+    /// Updates your own profile (display name and bio)
     Update {
         #[arg(long)]
         display_name: Option<String>,
         #[arg(long)]
         bio: Option<String>,
-        #[arg(
-            long,
-            value_name = "FILE_OR_ATTACHMENT_ID",
-            help = "File path or previously uploaded attachment ID (f_...) to use as the avatar. If a file is given, it is uploaded first via 'POST /uploads'."
-        )]
-        avatar: Option<String>,
-        #[arg(
-            long,
-            help = "Removes the avatar (explicitly sends 'null' in the PATCH body — omitting the flag must not be confused with leaving the avatar as-is)"
-        )]
-        no_avatar: bool,
+    },
+    /// Uploads or removes your avatar (dedicated avatar endpoint)
+    Avatar {
+        /// Image file to upload (jpeg, png, gif or webp)
+        file: Option<String>,
+        /// Removes the current avatar instead of uploading one
+        #[arg(long)]
+        remove: bool,
     },
     /// Permanently deletes your own account
     Delete {
@@ -527,26 +658,6 @@ pub enum SaveAction {
 }
 
 #[derive(Args, Debug)]
-pub struct UploadArgs {
-    #[command(subcommand)]
-    pub action: UploadAction,
-}
-
-#[derive(Subcommand, Debug)]
-pub enum UploadAction {
-    /// Uploads an image or file (up to 8 MB)
-    Create {
-        /// File path to upload
-        file: String,
-    },
-    /// Deletes an uploaded file
-    Delete {
-        /// File ID (f_...)
-        id: String,
-    },
-}
-
-#[derive(Args, Debug)]
 pub struct ReportArgs {
     #[command(subcommand)]
     pub action: ReportAction,
@@ -591,10 +702,10 @@ pub enum AdminAction {
         #[command(subcommand)]
         action: AdminBanAction,
     },
-    /// User role management
-    Role {
+    /// Scoped permission management
+    Permission {
         #[command(subcommand)]
-        action: AdminRoleAction,
+        action: AdminPermissionAction,
     },
     /// Lists the audit log
     Actions,
@@ -631,28 +742,68 @@ pub enum AdminContentAction {
 
 #[derive(Subcommand, Debug)]
 pub enum AdminBanAction {
-    /// Bans a user
+    /// Bans a user (platform-wide, or scoped to one community)
     Add {
         username: String,
         #[arg(long, required = true)]
         reason: String,
         #[arg(long)]
         expires: Option<String>,
+        #[arg(
+            long,
+            value_name = "NAME",
+            help = "Scope the ban to a community; omitted means platform-wide"
+        )]
+        community: Option<String>,
+        #[arg(
+            long,
+            help = "Also delete this user's posts in the community (requires --community)"
+        )]
+        delete_posts: bool,
     },
     /// Removes a user's ban
-    Remove { username: String },
+    Remove {
+        username: String,
+        #[arg(
+            long,
+            value_name = "NAME",
+            help = "Remove the community-scoped ban instead of the platform-wide one"
+        )]
+        community: Option<String>,
+    },
 }
 
 #[derive(Subcommand, Debug)]
-pub enum AdminRoleAction {
-    /// Grants a role to a user
+pub enum AdminPermissionAction {
+    /// Grants a scoped permission to a user
     Grant {
         username: String,
-        #[arg(long, value_parser = ["admin", "moderator"], required = true)]
-        role: String,
+        #[arg(
+            long,
+            value_name = "PERMISSION",
+            required = true,
+            help = "Dotted permission name, e.g. content.delete or member.kick"
+        )]
+        permission: String,
+        #[arg(
+            long,
+            value_name = "NAME",
+            help = "Scope the grant to a community; omitted means a global grant"
+        )]
+        community: Option<String>,
     },
-    /// Removes a user's roles
-    Revoke { username: String },
+    /// Revokes a scoped permission from a user
+    Revoke {
+        username: String,
+        #[arg(long, value_name = "PERMISSION", required = true)]
+        permission: String,
+        #[arg(
+            long,
+            value_name = "NAME",
+            help = "The community scope the grant was made under"
+        )]
+        community: Option<String>,
+    },
 }
 
 #[derive(Args, Debug)]

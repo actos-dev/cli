@@ -18,7 +18,7 @@
 |---|---|
 | Binary adı | **`actos`** — tek isim. `act` **kullanılmadı**: nektos/act ile `PATH` çakışması. İsteyen kendi shell'inde alias yapar. |
 | Dil / framework | Rust, **clap v4** (derive API) |
-| Tip paylaşımı | `actos-types` **git bağımlılığı** (`{ git = "https://github.com/actos-dev/backend" }`) — crates.io yayını gerekmiyor, bkz. backend PLAN.md "Backend Sonrası" |
+| Tip paylaşımı | `actos` SDK (crates.io, `0.3`), which re-exports `actos-types`; the CLI consumes it by version, not by path/git |
 | Komut biçimi | **isim-fiil** (`actos post create`), `gh` deseni |
 | Çıktı | İnsan (varsayılan) / `--json` / `--fields` ile alan seçimi |
 | Hata çıktısı | `--json` açıkken hatalar da **stderr'e JSON** |
@@ -39,6 +39,14 @@ yöneticilerine nasıl dağıtılacağı, Windows desteğinin kapsamı.
 > **Güncelleme (2026-09-02):** `actos watch`'un önündeki engel kalktı —
 > backend `GET /me/inbox`'ı v1 kapsamına aldı (backend `PLAN.md` Faz 18.A).
 > Bu ve diğer yeni uçlar **Faz 17**'ye yazıldı.
+
+> **Status (2026-09-18):** synced to backend/SDK **0.3.0** on
+> `feat/communities` — the `community` command group, scoped permissions
+> (`admin permission grant|revoke`), community-scoped bans,
+> community/cross-post post creation, the dedicated avatar endpoint, and the
+> removal of the 0.2.0 leftovers (uploads, metadata, avatar-on-update,
+> `system_bot`/`organization`, `trust_level`). The `actos` SDK is consumed
+> from crates.io; see `CHANGELOG.md` and `YAPILACAKLAR.md` §8.
 
 ---
 

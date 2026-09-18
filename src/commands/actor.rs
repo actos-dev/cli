@@ -41,11 +41,6 @@ pub async fn handle_actor(
                     println!("Avatar:       {av}");
                 }
                 println!("Joined:       {}", actor.created_at);
-                // Güven kademesi nötr durum bilgisidir, bir rütbe değil.
-                println!(
-                    "Trust Level:  {} (0-2; neutral status, not a rank)",
-                    actor.trust_level
-                );
                 println!("Account Age:  {}", format_account_age(&actor.created_at));
                 println!("\nStats:");
                 println!("  Posts:      {}", profile.stats.post_count);
@@ -91,73 +86,91 @@ pub async fn handle_actor(
             }
         }
 
-        ActorAction::Update {
-            display_name,
-            bio,
-            avatar,
-            no_avatar,
-        } => {
+        ActorAction::Update { display_name, bio } => {
             if client.api_key().is_none() {
                 return Err(CliError::Auth(
                     "Authentication required to update profile. Run 'actos auth login' or set ACTOS_API_KEY.".to_string(),
                 ));
             }
 
-            if no_avatar && avatar.is_some() {
+            if display_name.is_none() && bio.is_none() {
                 return Err(CliError::Usage(
-                    "Use either '--avatar' or '--no-avatar', not both.".to_string(),
+                    "At least one of '--display-name' or '--bio' must be provided.".to_string(),
                 ));
             }
 
-            if display_name.is_none() && bio.is_none() && avatar.is_none() && !no_avatar {
-                return Err(CliError::Usage(
-                    "At least one of '--display-name', '--bio', '--avatar' or '--no-avatar' must be provided.".to_string(),
-                ));
-            }
-
-            let mut patch_map = serde_json::Map::new();
+            let mut builder = client.actors().update_me();
             if let Some(d) = display_name {
-                patch_map.insert("display_name".to_string(), json!(d));
+                builder = builder.display_name(d);
             }
             if let Some(b) = bio {
-                patch_map.insert("bio".to_string(), json!(b));
-            }
-            // avatar üç durumlu: anahtar yok = "dokunma", null = "kaldır",
-            // id = "ata". `--no-avatar` açıkça `null` gönderir.
-            if no_avatar {
-                patch_map.insert("avatar".to_string(), serde_json::Value::Null);
-            } else if let Some(av) = avatar {
-                let attachment_id = if av.starts_with("f_") {
-                    av
-                } else {
-                    let up = crate::commands::upload::upload_file(client, &av).await?;
-                    up.id
-                };
-                patch_map.insert("avatar".to_string(), json!(attachment_id));
+                builder = builder.bio(b);
             }
 
-            let bytes_body = serde_json::to_vec(&patch_map).map_err(|e| {
-                CliError::Validation(format!("Failed to serialize update JSON: {e}"))
-            })?;
-
-            let (_status, _headers, bytes, rate_limit) = client
-                .execute_request(
-                    reqwest::Method::PATCH,
-                    "/actors/me",
-                    None,
-                    Some(bytes_body),
-                    None,
-                )
-                .await?;
-
-            let val: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| {
-                CliError::General(format!("Failed to parse profile update response: {e}"))
-            })?;
+            let actor = builder.send().await.map_err(CliError::from)?;
+            let rate_limit = client.rate_limit_info().unwrap_or_default();
 
             if output.json {
+                let val = serde_json::to_value(&actor).map_err(|e| {
+                    CliError::General(format!("Failed to serialize profile update: {e}"))
+                })?;
                 output.print_json(&val, Some(rate_limit));
             } else {
                 println!("Profile updated successfully.");
+            }
+        }
+
+        ActorAction::Avatar { file, remove } => {
+            if client.api_key().is_none() {
+                return Err(CliError::Auth(
+                    "Authentication required to update the avatar. Run 'actos auth login' or set ACTOS_API_KEY.".to_string(),
+                ));
+            }
+
+            match (file, remove) {
+                (Some(_), true) => {
+                    return Err(CliError::Usage(
+                        "Use either an image file or '--remove', not both.".to_string(),
+                    ));
+                }
+                (None, false) => {
+                    return Err(CliError::Usage(
+                        "Provide an image file to upload, or pass '--remove' to clear the avatar."
+                            .to_string(),
+                    ));
+                }
+                (None, true) => {
+                    client
+                        .actors()
+                        .delete_avatar()
+                        .await
+                        .map_err(CliError::from)?;
+                    let rate_limit = client.rate_limit_info().unwrap_or_default();
+
+                    if output.json {
+                        output.print_json(&json!({ "status": "removed" }), Some(rate_limit));
+                    } else {
+                        println!("Avatar removed.");
+                    }
+                }
+                (Some(path), false) => {
+                    let file = crate::commands::attachment::load_image(&path)?;
+                    let res = client
+                        .actors()
+                        .upload_avatar(file)
+                        .await
+                        .map_err(CliError::from)?;
+                    let rate_limit = client.rate_limit_info().unwrap_or_default();
+
+                    if output.json {
+                        let val = serde_json::to_value(&res).map_err(|e| {
+                            CliError::General(format!("Failed to serialize avatar response: {e}"))
+                        })?;
+                        output.print_json(&val, Some(rate_limit));
+                    } else {
+                        println!("Avatar updated: {}", res.avatar_url);
+                    }
+                }
             }
         }
 

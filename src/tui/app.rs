@@ -517,13 +517,11 @@ impl App {
         .to_string();
     }
 
-    /// Aktör filtresi: none → human → ai_agent → system_bot → organization.
+    /// Aktör filtresi: none → human → ai_agent.
     pub fn cycle_feed_actor(&mut self) {
         self.feed_actor_type = match self.feed_actor_type.as_deref() {
             None => Some("human".to_string()),
             Some("human") => Some("ai_agent".to_string()),
-            Some("ai_agent") => Some("system_bot".to_string()),
-            Some("system_bot") => Some("organization".to_string()),
             _ => None,
         };
     }
@@ -696,8 +694,6 @@ impl App {
         self.actors_type = match self.actors_type.as_deref() {
             None => Some("human".to_string()),
             Some("human") => Some("ai_agent".to_string()),
-            Some("ai_agent") => Some("system_bot".to_string()),
-            Some("system_bot") => Some("organization".to_string()),
             _ => None,
         };
     }
@@ -1450,7 +1446,6 @@ impl App {
                     "title": title.trim(),
                     "body": body,
                     "tags": tag_list,
-                    "metadata": {},
                 });
                 // POST'ta istemci otomatik Idempotency-Key üretir (çift post yok).
                 match client.post_json("/posts", &req, None).await {
@@ -1854,7 +1849,7 @@ mod tests {
         assert_eq!(app.feed_window, "day");
         app.cycle_feed_actor();
         assert_eq!(app.feed_actor_type, Some("human".to_string()));
-        for _ in 0..4 {
+        for _ in 0..2 {
             app.cycle_feed_actor();
         }
         assert_eq!(app.feed_actor_type, None);
@@ -1882,21 +1877,23 @@ mod tests {
                 "id": "a_1", "username": "alice", "actor_type": "human",
                 "display_name": null, "bio": null,
                 "created_at": "2026-01-01T00:00:00Z",
-                "trust_level": 0, "avatar_url": null
+                "avatar_url": null
             },
             "author_deleted": false,
+            "community": null,
             "title": "Hello",
             "body": "world",
             "body_format": "markdown",
             "body_html": null,
-            "metadata": {},
             "tags": [],
             "score": 5, "upvotes": 5, "downvotes": 0,
             "comment_count": 0,
             "created_at": "2026-01-01T00:00:00Z",
             "edited_at": null,
             "attachments": null,
-            "deleted": false
+            "deleted": false,
+            "is_cross_post": false,
+            "cross_post": null
         }))
         .expect("fixture parses")
     }
@@ -2090,31 +2087,35 @@ mod tests {
 
     #[test]
     fn test_find_comment_body_and_cycle() {
-        let tree: Vec<CommentNodeResponse> = serde_json::from_value(serde_json::json!([
+        let tree: Vec<CommentNodeResponse> = serde_json::from_str(
+            r#"[
             {"id": "c_a", "content_type": "comment",
              "author": {"id": "a_1", "username": "u", "actor_type": "human",
                  "display_name": null, "bio": null,
                  "created_at": "2026-01-01T00:00:00Z",
-                 "trust_level": 0, "avatar_url": null},
-             "author_deleted": false, "title": null, "body": "top",
-             "body_format": "markdown", "body_html": null, "metadata": {},
+                 "avatar_url": null},
+             "author_deleted": false, "community": null, "title": null, "body": "top",
+             "body_format": "markdown", "body_html": null,
              "tags": [], "score": 1, "upvotes": 1, "downvotes": 0,
              "comment_count": 0, "created_at": "2026-01-01T00:00:00Z",
              "edited_at": null, "attachments": null, "deleted": false,
+             "is_cross_post": false, "cross_post": null,
              "replies": [
                 {"id": "c_b", "content_type": "comment",
                  "author": {"id": "a_1", "username": "u", "actor_type": "human",
                      "display_name": null, "bio": null,
                      "created_at": "2026-01-01T00:00:00Z",
-                     "trust_level": 0, "avatar_url": null},
-                 "author_deleted": false, "title": null, "body": "nested",
-                 "body_format": "markdown", "body_html": null, "metadata": {},
+                     "avatar_url": null},
+                 "author_deleted": false, "community": null, "title": null, "body": "nested",
+                 "body_format": "markdown", "body_html": null,
                  "tags": [], "score": 0, "upvotes": 0, "downvotes": 0,
                  "comment_count": 0, "created_at": "2026-01-01T00:00:00Z",
                  "edited_at": null, "attachments": null, "deleted": false,
+                 "is_cross_post": false, "cross_post": null,
                  "replies": []}
              ]}
-        ]))
+        ]"#,
+        )
         .expect("fixture parses");
         let mut app = test_app();
         app.post_comments = tree;

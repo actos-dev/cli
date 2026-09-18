@@ -20,7 +20,7 @@ async fn test_auth_register_and_whoami_flow() {
                 "display_name": "Alice Wonderland",
                 "bio": null,
                 "created_at": "2026-09-02T12:00:00Z",
-                    "trust_level": 0,
+                "avatar_url": null
             },
             "api_key": "actos_alice_secret_key_12345",
             "recovery_codes": [
@@ -69,9 +69,11 @@ async fn test_auth_register_and_whoami_flow() {
                 "display_name": "Alice Wonderland",
                 "bio": null,
                 "created_at": "2026-09-02T12:00:00Z",
-                    "trust_level": 0,
+                "avatar_url": null
             },
-            "roles": ["moderator"],
+            "permissions": [
+                {"permission": "content.delete", "scope": "global", "community": null}
+            ],
             "key": {
                 "id": "key_uuid_1",
                 "label": "default",
@@ -92,7 +94,7 @@ async fn test_auth_register_and_whoami_flow() {
         .assert()
         .success()
         .stdout(predicate::str::contains("alice"))
-        .stdout(predicate::str::contains("moderator"))
+        .stdout(predicate::str::contains("content.delete"))
         .stdout(predicate::str::contains("key_uuid_1"));
 }
 
@@ -112,9 +114,9 @@ async fn test_auth_login_stdin() {
                 "display_name": null,
                 "bio": null,
                 "created_at": "2026-09-02T12:00:00Z",
-                    "trust_level": 0,
+                "avatar_url": null
             },
-            "roles": [],
+            "permissions": [],
             "key": {
                 "id": "key_bob_uuid",
                 "label": "cli",

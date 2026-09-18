@@ -25,8 +25,16 @@ fn get_examples_for_command(name: &str) -> Vec<String> {
         ],
         "post" => vec![
             "actos post create --title 'Title' --body 'Content'".into(),
+            "actos post create --title 'Title' --body 'Content' --community rust".into(),
+            "actos post create --title 'x' --body 'x' --cross-post c_12345".into(),
             "actos post view c_12345".into(),
             "actos post list --actor alice".into(),
+        ],
+        "community" => vec![
+            "actos community list".into(),
+            "actos community create rust --description 'Rust talk'".into(),
+            "actos community info rust".into(),
+            "actos community posts rust --sort top".into(),
         ],
         "comment" => vec![
             "actos comment create c_post1 --body 'Great!'".into(),
@@ -53,20 +61,21 @@ fn get_examples_for_command(name: &str) -> Vec<String> {
             "actos actor view alice".into(),
             "actos actor follow alice".into(),
             "actos actor list --type human".into(),
+            "actos actor avatar ./me.png".into(),
+            "actos actor avatar --remove".into(),
         ],
         "vote" => vec![
             "actos vote up c_post1".into(),
             "actos vote status --ids c_1,c_2".into(),
         ],
         "save" => vec!["actos save add c_post1".into(), "actos save list".into()],
-        "upload" => vec![
-            "actos upload create ./image.png".into(),
-            "actos upload delete f_123 --yes".into(),
-        ],
         "report" => vec!["actos report create --target c_post1 --type post --reason 'Spam'".into()],
         "admin" => vec![
             "actos admin reports list".into(),
             "actos admin ban add troll --reason 'Spam'".into(),
+            "actos admin ban add troll --reason 'Spam' --community rust --delete-posts".into(),
+            "actos admin permission grant alice content.delete --community rust".into(),
+            "actos admin permission revoke alice content.delete --community rust".into(),
             "actos admin content delete c_post1 --reason 'Rule violation' --yes".into(),
         ],
         "api" => vec![

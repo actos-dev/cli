@@ -1,8 +1,10 @@
 pub mod actor;
 pub mod admin;
 pub mod api;
+pub mod attachment;
 pub mod auth;
 pub mod comment;
+pub mod community;
 pub mod completion;
 pub mod config;
 pub mod feed;
@@ -16,6 +18,5 @@ pub mod save;
 pub mod search;
 pub mod tag;
 pub mod update;
-pub mod upload;
 pub mod vote;
 pub mod watch;

@@ -1,6 +1,6 @@
 [package]
 name = "actos-cli"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.96"
 license = "AGPL-3.0-only"
@@ -32,7 +32,7 @@ path = "src/main.rs"
 # Official `actos` SDK (crates.io). Renamed to `actos-sdk` in source because the
 # CLI lib crate itself is also named `actos` (a dependency and a crate cannot
 # share the same extern name inside one binary).
-actos-sdk = { package = "actos", version = "0.1", default-features = false }
+actos-sdk = { package = "actos", version = "0.3", default-features = false }
 clap = { version = "4.5", features = ["derive", "env"] }
 clap_complete = "4.5"
 clap_mangen = "0.2"

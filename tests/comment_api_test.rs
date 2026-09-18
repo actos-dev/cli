@@ -22,13 +22,11 @@ async fn test_comment_create_root_and_nested() {
                 "display_name": null,
                 "bio": null,
                 "created_at": "2026-09-02T12:00:00Z",
-                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": null,
             "body": "Harika bir gönderi!",
             "body_format": "plain",
-            "metadata": {},
             "tags": [],
             "score": 0,
             "upvotes": 0,
@@ -36,7 +34,7 @@ async fn test_comment_create_root_and_nested() {
             "comment_count": 0,
             "created_at": "2026-09-02T12:00:00Z",
             "edited_at": null,
-            "deleted": false
+            "deleted": false, "is_cross_post": false, "cross_post": null
         })))
         .mount(&mock_server)
         .await;
@@ -96,13 +94,11 @@ async fn test_comment_view_normal_and_deleted() {
                     "display_name": null,
                     "bio": null,
                     "created_at": "2026-09-02T12:00:00Z",
-                        "trust_level": 0,
                 },
                 "author_deleted": false,
                 "title": null,
                 "body": "Aktif yorum gövdesi",
                 "body_format": "plain",
-                "metadata": {},
                 "tags": [],
                 "score": 3,
                 "upvotes": 3,
@@ -110,7 +106,7 @@ async fn test_comment_view_normal_and_deleted() {
                 "comment_count": 0,
                 "created_at": "2026-09-02T12:00:00Z",
                 "edited_at": null,
-                "deleted": false
+                "deleted": false, "is_cross_post": false, "cross_post": null
             },
             "ancestors": [
                 {
@@ -123,13 +119,11 @@ async fn test_comment_view_normal_and_deleted() {
                         "display_name": null,
                         "bio": null,
                         "created_at": "2026-09-02T12:00:00Z",
-                            "trust_level": 0,
                     },
                     "author_deleted": false,
                     "title": "Kök Gönderi",
                     "body": "Gövde",
                     "body_format": "markdown",
-                    "metadata": {},
                     "tags": [],
                     "score": 10,
                     "upvotes": 10,
@@ -137,7 +131,7 @@ async fn test_comment_view_normal_and_deleted() {
                     "comment_count": 1,
                     "created_at": "2026-09-02T12:00:00Z",
                     "edited_at": null,
-                    "deleted": false
+                    "deleted": false, "is_cross_post": false, "cross_post": null
                 }
             ]
         })))
@@ -158,13 +152,11 @@ async fn test_comment_view_normal_and_deleted() {
                     "display_name": null,
                     "bio": null,
                     "created_at": "2026-09-02T12:00:00Z",
-                        "trust_level": 0,
                 },
                 "author_deleted": true,
                 "title": null,
                 "body": "[silindi]",
                 "body_format": "plain",
-                "metadata": {},
                 "tags": [],
                 "score": 0,
                 "upvotes": 0,
@@ -172,7 +164,7 @@ async fn test_comment_view_normal_and_deleted() {
                 "comment_count": 0,
                 "created_at": "2026-09-02T12:00:00Z",
                 "edited_at": null,
-                "deleted": true
+                "deleted": true, "is_cross_post": false, "cross_post": null
             },
             "ancestors": []
         })))
@@ -221,13 +213,11 @@ async fn test_comment_list_indented_tree() {
                         "display_name": null,
                         "bio": null,
                         "created_at": "2026-09-02T12:00:00Z",
-                            "trust_level": 0,
                     },
                     "author_deleted": false,
                     "title": null,
                     "body": "Birinci seviye yorum",
                     "body_format": "plain",
-                    "metadata": {},
                     "tags": [],
                     "score": 5,
                     "upvotes": 5,
@@ -235,7 +225,7 @@ async fn test_comment_list_indented_tree() {
                     "comment_count": 1,
                     "created_at": "2026-09-02T12:00:00Z",
                     "edited_at": null,
-                    "deleted": false,
+                    "deleted": false, "is_cross_post": false, "cross_post": null,
                     "replies": [
                         {
                             "id": "c_child_1",
@@ -247,13 +237,11 @@ async fn test_comment_list_indented_tree() {
                                 "display_name": null,
                                 "bio": null,
                                 "created_at": "2026-09-02T12:00:00Z",
-                                    "trust_level": 0,
                             },
                             "author_deleted": false,
                             "title": null,
                             "body": "İkinci seviye yanıt",
                             "body_format": "plain",
-                            "metadata": {},
                             "tags": [],
                             "score": 2,
                             "upvotes": 2,
@@ -261,7 +249,7 @@ async fn test_comment_list_indented_tree() {
                             "comment_count": 0,
                             "created_at": "2026-09-02T12:00:00Z",
                             "edited_at": null,
-                            "deleted": false,
+                            "deleted": false, "is_cross_post": false, "cross_post": null,
                             "replies": []
                         }
                     ]
@@ -302,13 +290,11 @@ async fn test_comment_edit_and_delete() {
                 "display_name": null,
                 "bio": null,
                 "created_at": "2026-09-02T12:00:00Z",
-                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": null,
             "body": "Düzenlenmiş yorum gövdesi",
             "body_format": "plain",
-            "metadata": {},
             "tags": [],
             "score": 0,
             "upvotes": 0,
@@ -316,7 +302,7 @@ async fn test_comment_edit_and_delete() {
             "comment_count": 0,
             "created_at": "2026-09-02T12:00:00Z",
             "edited_at": "2026-09-02T13:00:00Z",
-            "deleted": false
+            "deleted": false, "is_cross_post": false, "cross_post": null
         })))
         .mount(&mock_server)
         .await;

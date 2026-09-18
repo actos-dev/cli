@@ -118,3 +118,48 @@ kullanıcıya bastığı Türkçe metinler kaldı:
 3. **§2**: `verify` komutlarını plandan düş.
 4. **§4**: `actos-types` bağımlılığını git'e çevir (Rust SDK ile birlikte),
    sonra Faz 16'nın kalanı.
+
+## 7. Kullanıcı gözlemi — feed çıktısı UX iyileştirmesi
+
+**Kaynak:** kullanıcı, 2026-09-05 (yayın turu sonu). Yayın işi DEĞİL, gelecek tur
+için kayıt.
+
+**Sorun:** `actos feed` tablosu yalnızca özet sütunları render ediyor —
+`ID | Title | Author | Score | Comments | Created At`. Postun **gövdesinden
+hiçbir şey** görünmüyor; örn. kullanıcı `c_Fm8yNuYqoEI` ("No captcha asked")
+postunun feed satırında sadece başlığını görüyor, içeriğin ilk cümleleri yok.
+
+**İstenen davranış:** `actos feed` çıktısı, her postun **başlığı + gövdenin ilk
+birkaç cümlesi** olacak şekilde render edilsin — "sadece ID" değil, okunabilir
+bir özet. Yani feed bir **icerik özeti** gibi görünmeli, tablo satırı değil.
+
+**Not:** Arka uç `GET /feed` zaten `body`'yi (ve `body_html`) döndürüyor;
+boşluk yalnızca CLI render katmanında. Yani değişiklik `src/commands/feed.rs`
+(ve gerekirse `src/output/`) çıktı biçimini ilgilendirir, backend'e dokunmaz.
+
+**Uygulama yönünü açık bırakalım:** satır-başına snippet mi, yoksa blok halinde
+post-post mu listelensin — kullanıcı tercihi geçmeden karar verilmez. `--json`
+çıktısı zaten ham `body` içeriyor; değişiklik öncelikle terminal/tablo görünümü
+için.
+
+## 8. 0.3.0 communities — CLI sync (done, 2026-09-18)
+
+**Status: complete on branch `feat/communities`.** The CLI is synced to
+backend/SDK 0.3.0.
+
+- Dependency moved to the crates.io `actos` SDK `0.3`; crate bumped to
+  `0.3.0` (`Cargo.lock` updated).
+- New `community` command group covering the whole `/communities/*` and
+  `/me/invitations` surface, with cursor pagination and raw `--json`.
+- `admin permission grant|revoke` replaces `admin role`; bans gained
+  `--community` and `--delete-posts`.
+- `post create` gained `--community` and `--cross-post`; `--attach` now
+  sends images with the post in one multipart request.
+- Avatar moved to `actor avatar <file>` / `actor avatar --remove`.
+- `auth whoami` prints scoped permissions; community and cross-post
+  (including the tombstone) render in the feed, post detail and TUI.
+- The 0.2.0 leftovers are gone: `upload` group, `--metadata`,
+  `actor update --avatar`, `system_bot`/`organization`, `trust_level`.
+
+The feed body-snippet UX item in §7 is intentionally **not** part of this
+round; it remains open.

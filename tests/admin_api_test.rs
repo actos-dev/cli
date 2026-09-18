@@ -210,36 +210,41 @@ async fn test_admin_content_delete_requires_yes() {
 }
 
 #[tokio::test]
-async fn test_admin_ban_and_roles() {
+async fn test_admin_bans_and_permissions() {
     let mock_server = MockServer::start().await;
     let tmp_config = NamedTempFile::new().unwrap();
 
-    // 1. Ban add
+    // 1. Ban add (platform-wide)
     Mock::given(method("POST"))
         .and(path("/admin/bans"))
         .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
             "username": "troll",
             "reason": "Taciz",
             "banned_at": "2026-09-02T12:00:00Z",
-            "expires_at": null
+            "expires_at": null,
+            "community": null
         })))
         .mount(&mock_server)
         .await;
 
-    // 2. Ban remove
+    // 2. Ban remove (platform-wide)
     Mock::given(method("DELETE"))
         .and(path("/admin/bans/troll"))
         .respond_with(ResponseTemplate::new(204))
         .mount(&mock_server)
         .await;
 
-    // 3. Role grant
-    Mock::given(method("POST"))
-        .and(path("/admin/roles"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "username": "moderator_candidate",
-            "role": "moderator"
-        })))
+    // 3. Permission grant (global)
+    Mock::given(method("PUT"))
+        .and(path("/admin/permissions"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&mock_server)
+        .await;
+
+    // 4. Permission revoke (global)
+    Mock::given(method("DELETE"))
+        .and(path("/admin/permissions"))
+        .respond_with(ResponseTemplate::new(204))
         .mount(&mock_server)
         .await;
 
@@ -265,24 +270,145 @@ async fn test_admin_ban_and_roles() {
         .success()
         .stdout(predicate::str::contains("Ban removed for user 'troll'."));
 
-    // Role grant
-    let mut cmd_role = Command::cargo_bin("actos").unwrap();
-    cmd_role
+    // Permission grant
+    let mut cmd_grant = Command::cargo_bin("actos").unwrap();
+    cmd_grant
         .env("ACTOS_CONFIG", tmp_config.path())
         .env("ACTOS_API_URL", mock_server.uri())
         .env("ACTOS_API_KEY", "actos_admin_key")
         .args([
             "admin",
-            "role",
+            "permission",
             "grant",
             "moderator_candidate",
-            "--role",
-            "moderator",
+            "--permission",
+            "content.delete",
         ])
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "Role 'moderator' granted to 'moderator_candidate'.",
+            "Permission 'content.delete' granted to 'moderator_candidate'.",
+        ));
+
+    // Permission revoke
+    let mut cmd_revoke = Command::cargo_bin("actos").unwrap();
+    cmd_revoke
+        .env("ACTOS_CONFIG", tmp_config.path())
+        .env("ACTOS_API_URL", mock_server.uri())
+        .env("ACTOS_API_KEY", "actos_admin_key")
+        .args([
+            "admin",
+            "permission",
+            "revoke",
+            "moderator_candidate",
+            "--permission",
+            "content.delete",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Permission 'content.delete' revoked from 'moderator_candidate'.",
+        ));
+}
+
+#[tokio::test]
+async fn test_admin_community_scoped_ban_and_permission() {
+    use wiremock::matchers::body_partial_json;
+
+    let mock_server = MockServer::start().await;
+    let tmp_config = NamedTempFile::new().unwrap();
+
+    // Community-scoped ban with post deletion.
+    Mock::given(method("POST"))
+        .and(path("/admin/bans"))
+        .and(body_partial_json(serde_json::json!({
+            "username": "troll",
+            "community": "rust",
+            "delete_posts": true
+        })))
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
+            "username": "troll",
+            "reason": "Taciz",
+            "banned_at": "2026-09-02T12:00:00Z",
+            "expires_at": null,
+            "community": "rust"
+        })))
+        .mount(&mock_server)
+        .await;
+
+    // Community-scoped ban removal carries the ?community= query.
+    Mock::given(method("DELETE"))
+        .and(path("/admin/bans/troll"))
+        .and(wiremock::matchers::query_param("community", "rust"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&mock_server)
+        .await;
+
+    // Community-scoped permission grant.
+    Mock::given(method("PUT"))
+        .and(path("/admin/permissions"))
+        .and(body_partial_json(serde_json::json!({
+            "username": "alice",
+            "permission": "member.kick",
+            "community": "rust"
+        })))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&mock_server)
+        .await;
+
+    let mut cmd_ban = Command::cargo_bin("actos").unwrap();
+    cmd_ban
+        .env("ACTOS_CONFIG", tmp_config.path())
+        .env("ACTOS_API_URL", mock_server.uri())
+        .env("ACTOS_API_KEY", "actos_admin_key")
+        .args([
+            "admin",
+            "ban",
+            "add",
+            "troll",
+            "--reason",
+            "Taciz",
+            "--community",
+            "rust",
+            "--delete-posts",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "User 'troll' has been banned from community 'rust'.",
+        ));
+
+    let mut cmd_unban = Command::cargo_bin("actos").unwrap();
+    cmd_unban
+        .env("ACTOS_CONFIG", tmp_config.path())
+        .env("ACTOS_API_URL", mock_server.uri())
+        .env("ACTOS_API_KEY", "actos_admin_key")
+        .args(["admin", "ban", "remove", "troll", "--community", "rust"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Community ban removed for user 'troll' in 'rust'.",
+        ));
+
+    let mut cmd_grant = Command::cargo_bin("actos").unwrap();
+    cmd_grant
+        .env("ACTOS_CONFIG", tmp_config.path())
+        .env("ACTOS_API_URL", mock_server.uri())
+        .env("ACTOS_API_KEY", "actos_admin_key")
+        .args([
+            "admin",
+            "permission",
+            "grant",
+            "alice",
+            "--permission",
+            "member.kick",
+            "--community",
+            "rust",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Permission 'member.kick' granted to 'alice' in 'rust'.",
         ));
 }
 

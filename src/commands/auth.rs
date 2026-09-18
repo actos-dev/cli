@@ -206,12 +206,19 @@ pub async fn handle_auth(
                 if let Some(dn) = &whoami.actor.display_name {
                     println!("Display Name: {dn}");
                 }
-                let roles_str = if whoami.roles.is_empty() {
-                    "none".to_string()
+                if whoami.permissions.is_empty() {
+                    println!("Permissions:  none");
                 } else {
-                    whoami.roles.join(", ")
-                };
-                println!("Roles:        {roles_str}");
+                    println!("Permissions:");
+                    for p in &whoami.permissions {
+                        match &p.community {
+                            Some(c) => {
+                                println!("  {} ({}, c/{})", p.permission, p.scope, c);
+                            }
+                            None => println!("  {} ({})", p.permission, p.scope),
+                        }
+                    }
+                }
                 println!("\nActive Key:");
                 println!("Key ID:       {}", whoami.key.id);
                 println!(

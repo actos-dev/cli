@@ -51,8 +51,7 @@ fn actor_json() -> serde_json::Value {
     serde_json::json!({
         "id": "a_1", "username": "alice", "actor_type": "human",
         "display_name": "Alice", "bio": "hi",
-        "created_at": "2026-01-01T00:00:00Z",
-        "trust_level": 3, "avatar_url": null
+        "created_at": "2026-01-01T00:00:00Z", "avatar_url": null
     })
 }
 
@@ -61,10 +60,10 @@ fn post_json(id: &str, title: &str) -> serde_json::Value {
         "id": id, "content_type": "post",
         "author": actor_json(),
         "author_deleted": false, "title": title, "body": "body text",
-        "body_format": "markdown", "body_html": null, "metadata": {},
+        "body_format": "markdown", "body_html": null,
         "tags": ["rust"], "score": 4, "upvotes": 4, "downvotes": 0,
         "comment_count": 2, "created_at": "2026-01-01T00:00:00Z",
-        "edited_at": null, "attachments": null, "deleted": false
+        "edited_at": null, "attachments": null, "deleted": false, "is_cross_post": false, "cross_post": null
     })
 }
 
@@ -197,4 +196,31 @@ fn test_render_overlays() {
     app.overlay = None;
     app.show_help_popup = true;
     assert!(screen_text(&mut app).contains("Quick Shortcuts"));
+}
+
+#[test]
+fn test_render_community_and_cross_post() {
+    let mut app = blank_app();
+
+    // A community post shows its community name in the feed.
+    let mut community_post = post_json("c_1", "Hello");
+    community_post["community"] = serde_json::json!({"id": "m_rust", "name": "rust"});
+    app.feed.items = vec![serde_json::from_value(community_post).unwrap()];
+    assert!(screen_text(&mut app).contains("c/rust"));
+
+    // A cross-post with an unreachable source renders the tombstone.
+    let mut cross = post_json("c_2", "ignored");
+    cross["title"] = serde_json::Value::Null;
+    cross["community"] = serde_json::Value::Null;
+    cross["is_cross_post"] = serde_json::json!(true);
+    cross["cross_post"] = serde_json::Value::Null;
+    let cross: actos_sdk::actos_types::content::ContentSummary =
+        serde_json::from_value(cross).unwrap();
+
+    app.feed.items = vec![cross.clone()];
+    assert!(screen_text(&mut app).contains("[unavailable]"));
+
+    app.current_tab = CurrentTab::Detail;
+    app.selected_post = Some(cross);
+    assert!(screen_text(&mut app).contains("source unavailable"));
 }

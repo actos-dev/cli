@@ -52,13 +52,11 @@ async fn test_tag_operations() {
                         "display_name": null,
                         "bio": null,
                         "created_at": "2026-09-02T12:00:00Z",
-                            "trust_level": 0,
                     },
                     "author_deleted": false,
                     "title": "Rust Gönderisi",
                     "body": "İçerik",
                     "body_format": "markdown",
-                    "metadata": {},
                     "tags": ["rust"],
                     "score": 10,
                     "upvotes": 10,
@@ -66,7 +64,7 @@ async fn test_tag_operations() {
                     "comment_count": 1,
                     "created_at": "2026-09-02T12:00:00Z",
                     "edited_at": null,
-                    "deleted": false
+                    "deleted": false, "is_cross_post": false, "cross_post": null
                 }
             ],
             "next_cursor": null
@@ -124,7 +122,6 @@ async fn test_actor_view_normal_404_410() {
                 "display_name": "Alice Wonderland",
                 "bio": "Rust developer",
                 "created_at": "2026-09-02T12:00:00Z",
-                    "trust_level": 0,
             },
             "stats": {
                 "post_count": 15,

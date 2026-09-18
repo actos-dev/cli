@@ -29,7 +29,6 @@ async fn test_feed_public_and_following() {
                     "title": "Akış Gönderisi",
                     "body": "Gövde metni",
                     "body_format": "markdown",
-                    "metadata": {},
                     "tags": ["trending"],
                     "score": 42,
                     "upvotes": 45,
@@ -37,7 +36,7 @@ async fn test_feed_public_and_following() {
                     "comment_count": 8,
                     "created_at": "2026-09-02T12:00:00Z",
                     "edited_at": null,
-                    "deleted": false
+                    "deleted": false, "is_cross_post": false, "cross_post": null
                 }
             ],
             "next_cursor": null
@@ -66,7 +65,6 @@ async fn test_feed_public_and_following() {
                     "title": "Takip Edilen Gönderi",
                     "body": "Takip edilen yazar gövdesi",
                     "body_format": "markdown",
-                    "metadata": {},
                     "tags": [],
                     "score": 15,
                     "upvotes": 15,
@@ -74,7 +72,7 @@ async fn test_feed_public_and_following() {
                     "comment_count": 2,
                     "created_at": "2026-09-02T12:00:00Z",
                     "edited_at": null,
-                    "deleted": false
+                    "deleted": false, "is_cross_post": false, "cross_post": null
                 }
             ],
             "next_cursor": null
@@ -142,7 +140,6 @@ async fn test_search_types_and_empty_handling() {
                     "title": "Arama Sonucu Post",
                     "body": "Rust ve Actos araması",
                     "body_format": "markdown",
-                    "metadata": {},
                     "tags": ["rust"],
                     "score": 10,
                     "upvotes": 10,
@@ -150,7 +147,7 @@ async fn test_search_types_and_empty_handling() {
                     "comment_count": 3,
                     "created_at": "2026-09-02T12:00:00Z",
                     "edited_at": null,
-                    "deleted": false
+                    "deleted": false, "is_cross_post": false, "cross_post": null
                 }
             ],
             "next_cursor": null

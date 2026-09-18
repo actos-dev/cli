@@ -52,6 +52,26 @@ pub fn parse_content_id(input: &str) -> String {
     trimmed.to_string()
 }
 
+/// Renders a post's title for table/list output.
+///
+/// A cross-post owns no title of its own; it renders the resolved source's
+/// title with a `↻` marker, or an `[unavailable]` tombstone when the source is
+/// deleted or invisible to the reader (`is_cross_post && !cross_post`).
+#[must_use]
+pub fn display_title(p: &serde_json::Value) -> String {
+    if p["is_cross_post"].as_bool().unwrap_or(false) {
+        match p.get("cross_post") {
+            Some(cp) if !cp.is_null() => {
+                let title = cp["title"].as_str().unwrap_or("(no title)");
+                format!("↻ {title}")
+            }
+            _ => "↻ [unavailable]".to_string(),
+        }
+    } else {
+        p["title"].as_str().unwrap_or("(no title)").to_string()
+    }
+}
+
 pub async fn handle_post(
     action: PostAction,
     client: &ApiClient,
@@ -64,7 +84,8 @@ pub async fn handle_post(
             body,
             tags,
             attach,
-            metadata,
+            community,
+            cross_post,
             idempotency_key,
         } => {
             if client.api_key().is_none() {
@@ -73,27 +94,22 @@ pub async fn handle_post(
                 ));
             }
 
-            let mut attachment_ids: Vec<String> = Vec::new();
-            for file_path in &attach {
-                let upload_res = crate::commands::upload::upload_file(client, file_path).await?;
-                attachment_ids.push(upload_res.id);
-            }
-
             let resolved_body = resolve_body_content(&body)?;
-            let meta_val: serde_json::Value = if let Some(m) = metadata {
-                serde_json::from_str(&m)
-                    .map_err(|e| CliError::Validation(format!("Invalid metadata JSON: {e}")))?
-            } else {
-                json!({})
-            };
 
-            let mut builder = client
-                .posts()
-                .create(title, resolved_body)
-                .metadata(meta_val);
+            let mut builder = client.posts().create(title, resolved_body);
             builder = builder.tags(split_tags(&tags));
-            if !attachment_ids.is_empty() {
-                builder = builder.attachment_ids(attachment_ids);
+            if !attach.is_empty() {
+                let files: Vec<actos_sdk::FileUpload> = attach
+                    .iter()
+                    .map(|path| crate::commands::attachment::load_image(path))
+                    .collect::<Result<_, _>>()?;
+                builder = builder.files(files);
+            }
+            if let Some(name) = community {
+                builder = builder.community(name);
+            }
+            if let Some(source) = cross_post {
+                builder = builder.cross_post_source(parse_content_id(&source));
             }
             let builder = if let Some(k) = idempotency_key {
                 builder.idempotency_key(k)
@@ -163,6 +179,9 @@ pub async fn handle_post(
                 }
                 println!("ID:      {}", post.id);
                 println!("Date:    {}", post.created_at);
+                if let Some(c) = &post.community {
+                    println!("Community: c/{}", c.name);
+                }
                 if !post.tags.is_empty() {
                     println!("Tags:    {}", post.tags.join(", "));
                 }
@@ -170,6 +189,24 @@ pub async fn handle_post(
                     "Score:   {} (+{} / -{}) | Comments: {}",
                     post.score, post.upvotes, post.downvotes, post.comment_count
                 );
+                if post.is_cross_post {
+                    match &post.cross_post {
+                        Some(cp) => {
+                            let src_title = cp.title.as_deref().unwrap_or("(no title)");
+                            let community = cp
+                                .community
+                                .as_ref()
+                                .map_or(String::new(), |c| format!(" in c/{}", c.name));
+                            println!(
+                                "Cross-post: ↻ {src_title} by @{}{} ({})",
+                                cp.author.username, community, cp.id
+                            );
+                        }
+                        None => {
+                            println!("Cross-post: ↻ source unavailable (deleted or not visible)")
+                        }
+                    }
+                }
                 println!("\n{}", post.body);
 
                 if let Some(c) = comments_val {
@@ -280,6 +317,7 @@ pub async fn handle_post(
                     "ID",
                     "Title",
                     "Author",
+                    "Community",
                     "Score",
                     "Comments",
                     "Created At",
@@ -288,13 +326,16 @@ pub async fn handle_post(
                 if let Some(posts) = posts_opt {
                     for p in posts {
                         let id = p["id"].as_str().unwrap_or("-");
-                        let title = p["title"].as_str().unwrap_or("-");
+                        let title = display_title(p);
                         let author = p["author"]["username"].as_str().unwrap_or("-");
+                        let community = p["community"]["name"].as_str().unwrap_or("-");
                         let score = p["score"].to_string();
                         let comments = p["comment_count"].to_string();
                         let created_at = p["created_at"].as_str().unwrap_or("-");
 
-                        table.add_row(vec![id, title, author, &score, &comments, created_at]);
+                        table.add_row(vec![
+                            id, &title, author, community, &score, &comments, created_at,
+                        ]);
                     }
                 }
 

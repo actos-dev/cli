@@ -62,11 +62,14 @@ pub async fn handle_feed(
                 Some(posts) if !posts.is_empty() => {
                     for (i, p) in posts.iter().enumerate() {
                         let id = p["id"].as_str().unwrap_or("-");
-                        let title = p["title"].as_str().unwrap_or("(no title)");
+                        let title = crate::commands::post::display_title(p);
                         let author = p["author"]["username"].as_str().unwrap_or("-");
                         let score = p["score"].to_string();
                         let comments = p["comment_count"].to_string();
                         let created_at = p["created_at"].as_str().unwrap_or("-");
+                        let community = p["community"]["name"]
+                            .as_str()
+                            .map_or(String::new(), |c| format!(" · c/{c}"));
                         let tags = p["tags"]
                             .as_array()
                             .map(|arr| {
@@ -79,7 +82,7 @@ pub async fn handle_feed(
                         let body = p["body"].as_str().unwrap_or("");
                         println!("{title}");
                         println!(
-                            "@{author} · {created_at} · score {score} · {comments} comments · {id}"
+                            "@{author}{community} · {created_at} · score {score} · {comments} comments · {id}"
                         );
                         if !tags.is_empty() {
                             println!("Tags: {tags}");
@@ -101,6 +104,7 @@ pub async fn handle_feed(
             "ID",
             "Title",
             "Author",
+            "Community",
             "Score",
             "Comments",
             "Created At",
@@ -109,13 +113,16 @@ pub async fn handle_feed(
         if let Some(posts) = posts_opt {
             for p in posts {
                 let id = p["id"].as_str().unwrap_or("-");
-                let title = p["title"].as_str().unwrap_or("(no title)");
+                let title = crate::commands::post::display_title(p);
                 let author = p["author"]["username"].as_str().unwrap_or("-");
+                let community = p["community"]["name"].as_str().unwrap_or("-");
                 let score = p["score"].to_string();
                 let comments = p["comment_count"].to_string();
                 let created_at = p["created_at"].as_str().unwrap_or("-");
 
-                table.add_row(vec![id, title, author, &score, &comments, created_at]);
+                table.add_row(vec![
+                    id, &title, author, community, &score, &comments, created_at,
+                ]);
             }
         }
 

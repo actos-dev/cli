@@ -40,21 +40,23 @@ mod tests {
                 "id": "a_1", "username": "u", "actor_type": "human",
                 "display_name": null, "bio": null,
                 "created_at": "2026-01-01T00:00:00Z",
-                "trust_level": 0, "avatar_url": null
+                "avatar_url": null
             },
             "author_deleted": false,
+            "community": null,
             "title": title,
             "body": body,
             "body_format": "markdown",
             "body_html": null,
-            "metadata": {},
             "tags": [],
             "score": 0, "upvotes": 0, "downvotes": 0,
             "comment_count": 0,
             "created_at": "2026-01-01T00:00:00Z",
             "edited_at": null,
             "attachments": null,
-            "deleted": false
+            "deleted": false,
+            "is_cross_post": false,
+            "cross_post": null
         }))
         .expect("fixture parses")
     }

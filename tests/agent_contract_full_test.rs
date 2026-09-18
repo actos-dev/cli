@@ -157,13 +157,11 @@ async fn test_rule_4_deterministic_write_responses() {
                 "display_name": null,
                 "bio": null,
                 "created_at": "2026-09-02T12:00:00Z",
-                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": "Başlık",
             "body": "Gövde",
             "body_format": "markdown",
-            "metadata": {},
             "tags": [],
             "score": 0,
             "upvotes": 0,
@@ -171,7 +169,7 @@ async fn test_rule_4_deterministic_write_responses() {
             "comment_count": 0,
             "created_at": "2026-09-02T12:00:00Z",
             "edited_at": null,
-            "deleted": false
+            "deleted": false, "is_cross_post": false, "cross_post": null
         })))
         .mount(&mock_server)
         .await;

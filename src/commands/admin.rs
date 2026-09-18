@@ -2,7 +2,7 @@ use comfy_table::{Table, presets::UTF8_FULL};
 use serde_json::json;
 
 use crate::cli::{
-    AdminAction, AdminBanAction, AdminContentAction, AdminReportsAction, AdminRoleAction,
+    AdminAction, AdminBanAction, AdminContentAction, AdminPermissionAction, AdminReportsAction,
 };
 use crate::client::ApiClient;
 use crate::commands::post::parse_content_id;
@@ -144,73 +144,120 @@ pub async fn handle_admin(
                 username,
                 reason,
                 expires,
+                community,
+                delete_posts,
             } => {
-                let mut req_body = json!({
-                    "username": username,
-                    "reason": reason,
-                });
+                if delete_posts && community.is_none() {
+                    return Err(CliError::Usage(
+                        "'--delete-posts' requires '--community'.".to_string(),
+                    ));
+                }
+                let mut builder = client.admin().bans().create(username.clone(), reason);
                 if let Some(exp) = expires {
-                    req_body["expires_at"] = json!(exp);
+                    builder = builder.expires_at(exp);
+                }
+                if let Some(c) = community.clone() {
+                    builder = builder.community(c);
+                }
+                if delete_posts {
+                    builder = builder.delete_posts(true);
                 }
 
-                let (val, rate_limit) = client.post_json("/admin/bans", &req_body, None).await?;
+                let ban = builder.send().await.map_err(CliError::from)?;
+                let rate_limit = client.rate_limit_info().unwrap_or_default();
 
                 if output.json {
+                    let val = serde_json::to_value(&ban)
+                        .map_err(|e| CliError::General(format!("Failed to serialize ban: {e}")))?;
                     output.print_json(&val, Some(rate_limit));
+                } else if let Some(c) = community {
+                    println!("User '{username}' has been banned from community '{c}'.");
                 } else {
                     println!("User '{username}' has been banned.");
                 }
             }
 
-            AdminBanAction::Remove { username } => {
-                let path = format!("/admin/bans/{username}");
-                let (status, _headers, _bytes, rate_limit) = client
-                    .execute_request(reqwest::Method::DELETE, &path, None, None, None)
-                    .await?;
-
-                if !status.is_success() {
-                    return Err(CliError::General(format!(
-                        "Failed to remove ban for '{username}'"
-                    )));
-                }
+            AdminBanAction::Remove {
+                username,
+                community,
+            } => {
+                client
+                    .admin()
+                    .bans()
+                    .remove(&username, community.as_deref())
+                    .await
+                    .map_err(CliError::from)?;
+                let rate_limit = client.rate_limit_info().unwrap_or_default();
 
                 if output.json {
-                    let res = json!({ "status": "unbanned", "username": username });
+                    let res = json!({
+                        "status": "unbanned",
+                        "username": username,
+                        "community": community,
+                    });
                     output.print_json(&res, Some(rate_limit));
+                } else if let Some(c) = community {
+                    println!("Community ban removed for user '{username}' in '{c}'.");
                 } else {
                     println!("Ban removed for user '{username}'.");
                 }
             }
         },
 
-        AdminAction::Role { action } => match action {
-            AdminRoleAction::Grant { username, role } => {
-                let req_body = json!({
-                    "username": username,
-                    "role": role,
-                });
-
-                let (val, rate_limit) = client.post_json("/admin/roles", &req_body, None).await?;
+        AdminAction::Permission { action } => match action {
+            AdminPermissionAction::Grant {
+                username,
+                permission,
+                community,
+            } => {
+                client
+                    .admin()
+                    .permissions()
+                    .grant(username.clone(), permission.clone(), community.as_deref())
+                    .await
+                    .map_err(CliError::from)?;
+                let rate_limit = client.rate_limit_info().unwrap_or_default();
 
                 if output.json {
-                    output.print_json(&val, Some(rate_limit));
+                    let res = json!({
+                        "status": "granted",
+                        "username": username,
+                        "permission": permission,
+                        "community": community,
+                    });
+                    output.print_json(&res, Some(rate_limit));
+                } else if let Some(c) = community {
+                    println!("Permission '{permission}' granted to '{username}' in '{c}'.");
                 } else {
-                    println!("Role '{role}' granted to '{username}'.");
+                    println!("Permission '{permission}' granted to '{username}'.");
                 }
             }
 
-            AdminRoleAction::Revoke { username } => {
-                let req_body = json!({
-                    "username": username,
-                    "role": serde_json::Value::Null,
-                });
-
-                let (val, rate_limit) = client.post_json("/admin/roles", &req_body, None).await?;
+            AdminPermissionAction::Revoke {
+                username,
+                permission,
+                community,
+            } => {
+                client
+                    .admin()
+                    .permissions()
+                    .revoke(username.clone(), permission.clone(), community.as_deref())
+                    .await
+                    .map_err(CliError::from)?;
+                let rate_limit = client.rate_limit_info().unwrap_or_default();
 
                 if output.json {
-                    output.print_json(&val, Some(rate_limit));
+                    let res = json!({
+                        "status": "revoked",
+                        "username": username,
+                        "permission": permission,
+                        "community": community,
+                    });
+                    output.print_json(&res, Some(rate_limit));
+                } else if let Some(c) = community {
+                    println!("Permission '{permission}' revoked from '{username}' in '{c}'.");
                 } else {
-                    println!("Roles revoked for user '{username}'.");
+                    println!("Permission '{permission}' revoked from '{username}'.");
                 }
             }
         },

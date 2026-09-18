@@ -174,7 +174,6 @@ async fn test_save_add_remove_list() {
                     "title": "Kaydedilen Gönderi",
                     "body": "Gövde",
                     "body_format": "markdown",
-                    "metadata": {},
                     "tags": [],
                     "score": 10,
                     "upvotes": 10,
@@ -182,7 +181,7 @@ async fn test_save_add_remove_list() {
                     "comment_count": 0,
                     "created_at": "2026-09-02T12:00:00Z",
                     "edited_at": null,
-                    "deleted": false
+                    "deleted": false, "is_cross_post": false, "cross_post": null
                 }
             ],
             "next_cursor": null

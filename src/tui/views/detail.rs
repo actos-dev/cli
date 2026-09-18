@@ -64,8 +64,15 @@ pub fn render_detail(frame: &mut Frame, app: &mut App, area: Rect) {
         return;
     };
 
-    let title_str = post.title.as_deref().unwrap_or("(no title)");
-    let post_text = vec![
+    let title_str = if post.is_cross_post {
+        match &post.cross_post {
+            Some(cp) => format!("↻ {}", cp.title.as_deref().unwrap_or("(no title)")),
+            None => "↻ [unavailable]".to_string(),
+        }
+    } else {
+        post.title.as_deref().unwrap_or("(no title)").to_string()
+    };
+    let mut post_text = vec![
         Line::from(vec![
             Span::styled(
                 title_str,
@@ -85,12 +92,32 @@ pub fn render_detail(frame: &mut Frame, app: &mut App, area: Rect) {
             Span::styled(format!("{}", post.score), Style::default().fg(Color::Green)),
             Span::raw(format!(" | Created: {}", post.created_at)),
         ]),
-        Line::from(""),
-        Line::from(crate::tui::app::strip_leading_title(
-            &post.body,
-            post.title.as_deref(),
-        )),
     ];
+    if let Some(c) = &post.community {
+        post_text.push(Line::from(vec![
+            Span::raw("Community: "),
+            Span::styled(format!("c/{}", c.name), Style::default().fg(Color::Magenta)),
+        ]));
+    }
+    if post.is_cross_post {
+        let text = match &post.cross_post {
+            Some(cp) => format!(
+                "↻ cross-post of {} by @{}",
+                cp.title.as_deref().unwrap_or("(no title)"),
+                cp.author.username
+            ),
+            None => "↻ cross-post — source unavailable (deleted or private)".to_string(),
+        };
+        post_text.push(Line::from(Span::styled(
+            text,
+            Style::default().fg(Color::DarkGray),
+        )));
+    }
+    post_text.push(Line::from(""));
+    post_text.push(Line::from(crate::tui::app::strip_leading_title(
+        &post.body,
+        post.title.as_deref(),
+    )));
 
     let post_len = post_text.len();
     let post_widget = Paragraph::new(post_text)

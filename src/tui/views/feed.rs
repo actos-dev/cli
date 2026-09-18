@@ -37,12 +37,24 @@ pub fn render_feed(frame: &mut Frame, app: &mut App, area: Rect) {
             let score_style = Style::default().fg(Color::Green);
             let author_style = Style::default().fg(Color::Cyan);
 
-            let title_str = post.title.as_deref().unwrap_or("(no title)");
+            let title_str = if post.is_cross_post {
+                match &post.cross_post {
+                    Some(cp) => format!("↻ {}", cp.title.as_deref().unwrap_or("(no title)")),
+                    None => "↻ [unavailable]".to_string(),
+                }
+            } else {
+                post.title.as_deref().unwrap_or("(no title)").to_string()
+            };
+            let community = post
+                .community
+                .as_ref()
+                .map_or(String::new(), |c| format!(" c/{}", c.name));
             let line = Line::from(vec![
                 Span::styled(prefix, Style::default().fg(Color::Yellow)),
                 Span::styled(format!("{:<40}", title_str), title_style),
                 Span::raw("  by "),
                 Span::styled(format!("@{}", post.author.username), author_style),
+                Span::styled(community, Style::default().fg(Color::Magenta)),
                 Span::raw("  [Score: "),
                 Span::styled(format!("{}", post.score), score_style),
                 Span::raw(format!(", Comments: {}]", post.comment_count)),

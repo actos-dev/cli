@@ -23,13 +23,11 @@ async fn test_post_create_literal_file_stdin() {
                 "display_name": null,
                 "bio": null,
                 "created_at": "2026-09-02T12:00:00Z",
-                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": "Başlık",
             "body": "Gövde metni",
             "body_format": "markdown",
-            "metadata": {},
             "tags": ["rust", "cli"],
             "score": 0,
             "upvotes": 0,
@@ -37,7 +35,7 @@ async fn test_post_create_literal_file_stdin() {
             "comment_count": 0,
             "created_at": "2026-09-02T12:00:00Z",
             "edited_at": null,
-            "deleted": false
+            "deleted": false, "is_cross_post": false, "cross_post": null
         })))
         .mount(&mock_server)
         .await;
@@ -116,13 +114,11 @@ async fn test_post_view_200_and_url_parsing() {
                 "display_name": "Alice",
                 "bio": null,
                 "created_at": "2026-09-02T12:00:00Z",
-                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": "Harika Bir Gönderi",
             "body": "Gönderi içeriği burada yer alıyor.",
             "body_format": "markdown",
-            "metadata": {},
             "tags": ["rust"],
             "score": 5,
             "upvotes": 5,
@@ -130,7 +126,7 @@ async fn test_post_view_200_and_url_parsing() {
             "comment_count": 0,
             "created_at": "2026-09-02T12:00:00Z",
             "edited_at": null,
-            "deleted": false
+            "deleted": false, "is_cross_post": false, "cross_post": null
         })))
         .mount(&mock_server)
         .await;
@@ -212,13 +208,11 @@ async fn test_post_edit() {
                 "display_name": null,
                 "bio": null,
                 "created_at": "2026-09-02T12:00:00Z",
-                    "trust_level": 0,
             },
             "author_deleted": false,
             "title": "Güncellenmiş Başlık",
             "body": "Yeni içerik",
             "body_format": "markdown",
-            "metadata": {},
             "tags": [],
             "score": 0,
             "upvotes": 0,
@@ -226,7 +220,7 @@ async fn test_post_edit() {
             "comment_count": 0,
             "created_at": "2026-09-02T12:00:00Z",
             "edited_at": "2026-09-02T13:00:00Z",
-            "deleted": false
+            "deleted": false, "is_cross_post": false, "cross_post": null
         })))
         .mount(&mock_server)
         .await;
@@ -304,13 +298,11 @@ async fn test_post_list_pagination() {
                         "display_name": null,
                         "bio": null,
                         "created_at": "2026-09-02T12:00:00Z",
-                            "trust_level": 0,
                     },
                     "author_deleted": false,
                     "title": "Post 1",
                     "body": "Body 1",
                     "body_format": "markdown",
-                    "metadata": {},
                     "tags": ["tech"],
                     "score": 10,
                     "upvotes": 10,
@@ -318,7 +310,7 @@ async fn test_post_list_pagination() {
                     "comment_count": 2,
                     "created_at": "2026-09-02T12:00:00Z",
                     "edited_at": null,
-                    "deleted": false
+                    "deleted": false, "is_cross_post": false, "cross_post": null
                 }
             ],
             "next_cursor": null
@@ -335,4 +327,72 @@ async fn test_post_list_pagination() {
         .stdout(predicate::str::contains("c_1"))
         .stdout(predicate::str::contains("Post 1"))
         .stdout(predicate::str::contains("alice"));
+}
+
+#[tokio::test]
+async fn test_post_create_with_attach_is_one_multipart_request() {
+    use std::io::Write as _;
+    use wiremock::matchers::header_regex;
+
+    let mock_server = MockServer::start().await;
+    let tmp_config = NamedTempFile::new().unwrap();
+
+    // The image must travel in the same POST /posts request as the post
+    // (multipart/form-data) — there is no standalone /uploads call any more.
+    Mock::given(method("POST"))
+        .and(path("/posts"))
+        .and(header_regex("content-type", "multipart/form-data"))
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
+            "id": "c_post_with_attach",
+            "content_type": "post",
+            "author": {
+                "id": "a_u1",
+                "username": "alice",
+                "actor_type": "human",
+                "display_name": null,
+                "bio": null,
+                "created_at": "2026-09-02T12:00:00Z",
+                "avatar_url": null
+            },
+            "author_deleted": false,
+            "community": null,
+            "title": "Ekli Post",
+            "body": "Gorsel eklendi",
+            "body_format": "markdown",
+            "body_html": null,
+            "tags": [],
+            "score": 0,
+            "upvotes": 0,
+            "downvotes": 0,
+            "comment_count": 0,
+            "created_at": "2026-09-02T12:00:00Z",
+            "edited_at": null,
+            "attachments": null,
+            "deleted": false,
+            "is_cross_post": false,
+            "cross_post": null
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let mut tmp_img = tempfile::Builder::new().suffix(".webp").tempfile().unwrap();
+    tmp_img.write_all(b"fake webp data").unwrap();
+
+    let mut cmd = Command::cargo_bin("actos").unwrap();
+    cmd.env("ACTOS_CONFIG", tmp_config.path())
+        .env("ACTOS_API_URL", mock_server.uri())
+        .env("ACTOS_API_KEY", "actos_test_key")
+        .args([
+            "post",
+            "create",
+            "--title",
+            "Ekli Post",
+            "--body",
+            "Gorsel eklendi",
+            "--attach",
+            tmp_img.path().to_str().unwrap(),
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("c_post_with_attach"));
 }

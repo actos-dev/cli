@@ -46,8 +46,8 @@ pub fn render_profile(frame: &mut Frame, app: &mut App, area: Rect) {
         Line::from(Span::raw(actor.bio.as_deref().unwrap_or("(no bio)"))),
         Line::from(Span::styled(
             format!(
-                "{} posts · {} comments · score {} · trust {}",
-                stats.post_count, stats.comment_count, stats.total_score, actor.trust_level
+                "{} posts · {} comments · score {}",
+                stats.post_count, stats.comment_count, stats.total_score
             ),
             Style::default().fg(Color::DarkGray),
         )),

@@ -1,44 +1,37 @@
-# Yayın (publish) — CLI
+# Publishing the CLI
 
-> Durum: **yayında.** `actos-cli` 0.2.1 crates.io'da (2026-09-07).
-> Yayın otomatik: CI `main`'de yeşil + `Cargo.toml` sürümü crates.io'da
-> yoksa Publish workflow'u kendiliğinden çıkarır (`.github/workflows/publish.yml`).
+> Status: **0.3.0 prepared, not yet published.** The version is bumped in
+> `Cargo.toml`; the CI publish workflow (`publish.yml`) releases it when
+> `main` is green and the version is not already on crates.io.
 >
-> Son güncelleme: 2026-09-07.
+> Last updated: 2026-09-18.
 
-## Hazır olanlar
+## Current state
 
-- `CARGO_REGISTRY_TOKEN` GitHub secret'ı `actos-dev/cli` reposuna kondu.
-- crates.io'da `actos`, `actos-cli`, `actos-types`, `actos-sdk` adlarının
-  **hepsi müsait** (kontrol edildi 2026-09-05).
+- `actos-cli` **0.2.1** is on crates.io (2026-09-07).
+- The `actos` Rust SDK **0.3.0** is on crates.io (2026-09-18), together with
+  `actos-types` **0.3.0**.
+- The CLI depends on the registry version:
+  `actos-sdk = { package = "actos", version = "0.3", default-features = false }`.
+- `CARGO_REGISTRY_TOKEN` is configured as a GitHub secret on
+  `actos-dev/cli`.
+- The crate name is `actos-cli`; `[[bin]] name = "actos"` keeps the command
+  as `actos`.
 
-## ENGEL 1 — `actos-types` path bağımlılığı
+## Resolved blockers (kept for history)
 
-`Cargo.toml:18`:
+### Path dependency on `actos-types` — resolved
 
-```toml
-actos-types = { path = "../actos-backend/crates/actos-types", default-features = false }
-```
+The CLI used to depend on `actos-types` through a local `path`. `cargo
+publish` rejects path dependencies, so `cargo install actos` did not work.
+`actos-types` (and the `actos` SDK that re-exports it) is now published to
+crates.io and the CLI depends on it by version. `cargo publish --dry-run`
+passes.
 
-`cargo publish` path bağımlılığı olan bir crate'i **kabul etmez** — yani
-`cargo install actos` bugün çalışmaz. Aynı bağımlılığı Rust SDK'sı da
-taşıyor; ikisi birlikte çözülecek.
+### crates.io name collision — resolved
 
-Çözüm: `actos-types` crates.io'ya yayınlandıktan sonra buradaki satır
-sürüm bağımlılığına çevrilir:
-
-```toml
-actos-types = { version = "0.1", default-features = false }
-```
-
-## ENGEL 2 — crates.io ad çakışması
-
-`cli/Cargo.toml` ve `rust/Cargo.toml` **ikisi de** `name = "actos"` diyor.
-crates.io'da bu adın tek sahibi olabilir.
-
-Alışıldık çözüm: kütüphane `actos` adını alır, CLI `actos-cli` olarak
-yayınlanır — ama `[[bin]] name = "actos"` sayesinde kullanıcı yine `actos`
-komutunu alır:
+Both the SDK and the CLI once declared `name = "actos"`. The SDK keeps
+`actos`; the CLI publishes as `actos-cli` and installs the `actos` binary:
 
 ```toml
 [package]
@@ -49,91 +42,47 @@ name = "actos"
 path = "src/main.rs"
 ```
 
-Böylece `cargo install actos-cli` kurar, komut `actos` olur. Karar
-verilmedi.
+### Turkish `description` — resolved
 
-## Küçük iş — açıklama hâlâ Türkçe
+The package `description` is English; the crate page is outward-facing and
+the project language is English.
 
-`Cargo.toml`:
+## Publishing checklist
 
-```toml
-description = "Actos platformu için resmi komut satırı aracı"
-```
+1. Confirm the backend the release targets is live.
+2. Confirm `actos`/`actos-types` of the matching version are on crates.io.
+3. `cargo fmt --check`
+4. `cargo clippy --all-targets --all-features -- -D warnings`
+5. `cargo test --all-features`
+6. `cargo build --all-features` and `cargo build --no-default-features`
+7. `cargo publish --dry-run`
+8. Let the CI publish workflow release the tag.
 
-Bu metin crates.io paket sayfasında görünüyor, yani dışa dönük. Projenin
-ana dili İngilizce (backend Faz 20'de karara bağlandı) — çevrilmeli.
+## Publish discipline — lessons from the 0.2.0 incident (2026-09-07)
 
-## Lisans notu
+### 1. The version is bumped in the same round as the feature
 
-Bu CLI `AGPL-3.0-only`. Bir uygulama (kütüphane değil) olduğu için AGPL
-burada sorun değil — bulaşma sorunu yalnızca kütüphanelerde geçerli.
-`actos-types` Apache-2.0'a çevrildiğinde (kullanıcı kararı, bkz. Rust
-SDK'sının `PUBLISH.md`'si) AGPL bir uygulamanın Apache bir kütüphaneyi
-kullanması sorunsuz.
+0.2.0 was cut before the `actos update` command existed: the version bump
+was pushed, automation ran, and crates.io received code **without** the
+`update` command. Users running `actos update` got "unrecognized
+subcommand"; 0.2.1 had to be released to fix it.
 
-## Yayın iş akışı henüz yazılmadı
+Rule: a user-visible feature and its version bump land in the same round.
+The automation publishes the moment it sees a new version, so accumulating
+unversioned features means cutting a release with missing code.
 
-`.github/workflows/` dizini **hiç yok**. Diğer repolarda en azından
-`ci.yml` var; burada o da yazılacak.
+### 2. Tests never embed a version number
 
-## Sıradaki adım
+`tests/update_test.rs` hard-coded `"0.2.0"`; the 0.2.1 bump broke it (the
+binary reported 0.2.1 while the test expected 0.2.0).
 
-1. `actos-types` Apache-2.0'a çevrilsin ve crates.io'ya yayınlansın
-   (backend repo'sunun işi).
-2. Ad çakışmasını çöz — `actos` kütüphaneye mi CLI'a mı gidiyor.
-3. Path bağımlılığını sürüm bağımlılığına çevir.
-4. `description`'ı İngilizceye çevir.
-5. `ci.yml` + publish workflow'u + `v0.1.0` tag'i.
+Rule: version-dependent tests use `env!("CARGO_PKG_VERSION")`. A literal
+version string in a test is forbidden — it breaks on every bump.
 
----
+## History — the CLI now uses the Rust SDK
 
-## Sonraki tur için fikir — CLI, Rust SDK'sını kullanmalı
-
-**Kullanıcı gözlemi (2026-09-05): "rust sdk'sını neden kullanmıyor ki?"**
-Haklı bir soru; ölçüldü ve gerçek bir tekrar var.
-
-CLI şu an `actos-types` + `reqwest` alıp **kendi taşıma katmanını**
-yazıyor: `src/client/` altında 799 satır — `retry.rs`, `ratelimit.rs`,
-`idempotency.rs`, `pagination.rs`, `mod.rs`. Rust SDK'sı (7 424 satır) tam
-olarak aynı işleri yapıyor ve üstüne 14 kaynak modülü (`actors`, `auth`,
-`comments`, `feed`, `inbox`, `admin`, `meta`, ...) sunuyor.
-
-Yani retry politikası, hız sınırı başlıklarının okunması, idempotency
-anahtarı üretimi ve cursor sayfalaması **iki yerde ayrı ayrı yazılmış
-durumda.** Sözleşme değiştiğinde ikisinin de güncellenmesi gerekiyor ve
-biri unutulursa sapma sessiz olur — bu projede tam olarak bu tür bir
-sapma daha önce yaşandı (`[silindi]` / `[deleted]`).
-
-Doğrusu: CLI `actos` crate'ine (Rust SDK) bağımlı olsun, `src/client/`
-silinsin. CLI'a kalan iş argüman ayrıştırma, çıktı biçimlendirme ve TUI —
-zaten olması gereken sorumluluk.
-
-**Neden şimdi değil:** bu bir refactor, yayın işi değil. Önce paketleme
-bitsin (yukarıdaki maddeler), `actos` crate'i crates.io'da yayında olsun,
-sonra CLI ona geçsin. Sırayı tersine çevirmek yayını geciktirir.
-
-Not edilme sebebi: unutulmasın. Acelesi yok.
-
----
-
-## Yayın disiplini — 2026-09-07 dersleri (0.2.0 olayı)
-
-### 1. Sürüm, feature ile birlikte artar
-
-0.2.0, `actos update` komutundan **önce** kesildi: versiyon artışı
-pushlandı → otomasyon çalıştı → crates.io'ya `update` komutu **olmayan**
-kod çıktı. Kurulum yapan kullanıcı `actos update` yazınca "unrecognized
-subcommand" aldı; düzeltme için 0.2.1 çıkarmak gerekti.
-
-Kural: yeni bir özellik/kullanıcı-görünür değişiklik `main`'e giriyorsa
-versiyon artışı aynı turda (tercihen aynı PR/push dizisinde) yapılır.
-Otomasyon "yeni sürüm" gördüğü anda yayınlar — sürümsüz feature biriktirmek,
-eksik kodla kesilmiş sürüm demektir.
-
-### 2. Testlere sürüm numarası gömülmez
-
-`tests/update_test.rs` ilk halinde `"0.2.0"` sabitini içeriyordu; versiyon
-0.2.1'e çıkınca test patladı (ikili 0.2.1 bildiriyor, test 0.2.0 bekliyordu).
-
-Kural: sürüm gerektiren testler `env!("CARGO_PKG_VERSION")` kullanır.
-Sabit sürüm string'i testte yasaktır — her bump'ta kırılır.
+The CLI once carried its own transport layer (retry, rate limiting,
+idempotency keys, cursor pagination) beside the Rust SDK, duplicating the
+same policy in two places. The CLI now depends on the `actos` crate and
+`src/client/` is gone; what remains is argument parsing, output formatting
+and the TUI.

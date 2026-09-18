@@ -18,7 +18,6 @@ fn inbox_payload() -> serde_json::Value {
                     "display_name": null,
                     "bio": null,
                     "created_at": "2026-09-02T12:00:00Z",
-                    "trust_level": 0
                 },
                 "target_type": "content",
                 "target_id": "c_1",

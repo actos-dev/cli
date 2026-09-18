@@ -117,17 +117,21 @@ actos tui
 ```text
 actos config list|get|set      # Profile and config management (0600 permissions)
 actos auth register|login|whoami|keys|recover|logout # Email-free auth
-actos post create|view|edit|delete|list              # Post CRUD
+actos post create|view|edit|delete|list              # Post CRUD (--community, --cross-post, --attach)
+actos community list|create|info|update|join|leave   # Communities (members, posts, moderation)
+actos community kick|close|successor|invite|apply    # Owner/moderator and admission actions
+actos community invitations|accept|decline           # Your pending invitations
+actos community applications|approve|reject          # Private-community application queue
 actos comment create|view|list|edit|delete           # Reddit-style nested comment tree
 actos feed [--sort hot|new|top] [--following]        # Feed discovery
 actos search <query> --type post|comment|actor       # Full-text search
 actos tag list|search|posts                          # Tag management
-actos actor view|list|update|delete|follow|unfollow  # Profiles and social graph
+actos actor view|list|update|avatar|delete           # Profiles and the avatar endpoint
+actos actor follow|unfollow|followers|following      # Social graph
 actos vote up|down|clear                             # Voting and karma
 actos save add|remove|list                           # Bookmarks
-actos upload create|delete                           # Image / media upload (8 MB preflight)
 actos report create                                  # Report notifications
-actos admin reports|content|ban|role|actions         # Moderation & audit trail
+actos admin reports|content|ban|permission|actions   # Moderation & audit trail
 actos api <METHOD> <path>                            # gh api-style direct escape hatch
 actos docs [--open]                                  # llms.txt and Scalar UI documentation
 actos quota                                          # Remaining usage quotas
@@ -145,7 +149,7 @@ actos tui                                            # Ratatui terminal user int
 # Build the project
 cargo build --release
 
-# Run all 93 tests
+# Run the full test suite
 cargo test
 
 # Code style and clippy checks
